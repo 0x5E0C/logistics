@@ -23,6 +23,17 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    typedef struct line
+    {
+        QVector<double> x;
+        QVector<double> y;
+    }line;
+    typedef struct task
+    {
+        int id;
+        int x;
+        int y;
+    }task;
 
 private:
     Ui::MainWindow *ui;
@@ -31,14 +42,10 @@ private:
     bool serial_state;
     QString  serial_choice;
     QSerialPort *serialport = new QSerialPort();
-    QList<quint8> id_list;
-    quint8 max_line_id;
-    typedef struct line
-    {
-        QVector<double> x;
-        QVector<double> y;
-    }line;
+    QList<quint8> id_list,task_id_list;
+    quint8 max_line_id,max_task_id;
     QList<line> line_list;
+    QList<task> task_list;
     detector *collision = new detector();
     void widgetInit();
     bool openSerialport();
@@ -52,5 +59,10 @@ private slots:
    void recordSerialChoice(int choice);
    void readSerialport();
    void emitStopSignal(quint8 line_id1,quint8 line_id2);
+   void addTask();
+   void deleteTask();
+   void changeTask(int i);
+   void syncCoordinateAxis();
+   void postTaskInfo();
 };
 #endif // MAINWINDOW_H
