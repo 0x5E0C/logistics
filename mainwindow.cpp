@@ -8,8 +8,17 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     widgetInit();
     connect(timer,SIGNAL(timeout()),this,SLOT(searchSerialport()));
+    connect(send_timer,SIGNAL(timeout()),this,SLOT(writeSerialport()));
     connect(ui->openButton,SIGNAL(clicked()),this,SLOT(changeSerialState()));
     connect(ui->serialportBox,SIGNAL(activated(int)),this,SLOT(recordSerialChoice(int)));
+    connect(ui->newTaskButton,SIGNAL(clicked()),this,SLOT(addTask()));
+    connect(ui->deleteTaskButton,SIGNAL(clicked()),this,SLOT(deleteTask()));
+    connect(ui->postTaskButton,SIGNAL(clicked()),this,SLOT(postTaskInfo()));
+    connect(ui->updateMapButton,SIGNAL(clicked()),this,SLOT(updateMapSize()));
+    connect(ui->taskBox,SIGNAL(activated(int)),this,SLOT(changeTask(int)));
+    connect(ui->editID,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
+    connect(ui->editEndX,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
+    connect(ui->editEndY,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
     connect(collision,SIGNAL(stopSignal(quint8,quint8)),this,SLOT(emitStopSignal(quint8,quint8)));
 }
@@ -24,6 +33,9 @@ void MainWindow::widgetInit()
     serial_state=CLOSESTATE;
     serial_choice="";
     max_line_id=0;
+    max_task_id=0;
+    reply_flag=false;
+    autosend_flag=false;
     ui->openButton->setIcon(QPixmap(":/state/close.png"));
     ui->openButton->setText("打开串口");
     ui->widget->setInteractions(QCP::iSelectAxes|QCP::iSelectLegend|QCP::iSelectPlottables);
@@ -136,37 +148,34 @@ void MainWindow::closeSerialport()
     serialport->close();
 }
 
-void MainWindow::writeSerialport(quint8 *data,int count)
+void MainWindow::writeSerialport()
 {
     QByteArray buffer;
-    buffer.resize(count);
-    memcpy(buffer.data(),data,count);
+    buffer.resize(PACKET_LENGTH);
+    memcpy(buffer.data(),send_buffer,PACKET_LENGTH*sizeof(quint8));
     serialport->write(buffer);
 }
 
 void MainWindow::readSerialport()
 {
     quint8 *rec_buffer=(quint8*)serialport->readAll().data();
-    int sum=0;
     quint8 line_id;
-    for(int i=0;i<=6;i++)
+    quint16 sum=0;
+    for(int i=0;i<6;i++)
     {
         sum+=rec_buffer[i];
     }
-    if(sum!=(rec_buffer[7]<<8|rec_buffer[8]))
+    if(sum!=(rec_buffer[6]<<8|rec_buffer[7]))
     {
         return;
     }
-    int x=(rec_buffer[1]==0x00?rec_buffer[2]<<8|rec_buffer[3]:-(rec_buffer[2]<<8|rec_buffer[3]));
-    int y=(rec_buffer[4]==0x00?rec_buffer[5]<<8|rec_buffer[6]:-(rec_buffer[5]<<8|rec_buffer[6]));
-    if(rec_buffer[0]==0x00)
+    qint16 x=rec_buffer[2]<<8|rec_buffer[3];
+    qint16 y=rec_buffer[4]<<8|rec_buffer[5];;
+    if(rec_buffer[1]==REPLY_CMD)
     {
-        ui->widget->xAxis->setRange(0,x);//设置x轴长度
-        ui->widget->yAxis->setRange(0,y);//设置y轴长度
-        ui->widget->replot();
-        collision->createMap(x,y);
+        reply_flag=true;
     }
-    else
+    else if(rec_buffer[1]==SENDPOS_CMD)
     {
         if(id_list.indexOf(rec_buffer[0])==-1)
         {
@@ -194,10 +203,30 @@ void MainWindow::emitStopSignal(quint8 line_id1,quint8 line_id2)
 {
     quint8 id1=id_list[line_id1];
     quint8 id2=id_list[line_id2];
-    quint8 sumh=(id1+id2)/255;
-    quint8 suml=(id1+id2)%255;
-    quint8 buffer[4]={id1,id2,sumh,suml};
-    writeSerialport(buffer,sizeof(buffer)/sizeof(quint8));
+    quint8 id=(id1>id2)?id1:id2;
+    quint8 buffer[PACKET_LENGTH];
+    if(!autosend_flag)
+    {
+        buffer[0]=id;
+        buffer[1]=STOP_CMD;
+        buffer[2]=0x00;
+        buffer[3]=0x00;
+        buffer[4]=0x00;
+        buffer[5]=0x00;
+        buffer[6]=((STOP_CMD+id)&0xFF00)>>8;
+        buffer[7]=(STOP_CMD+id)&0x00FF;
+        memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+        writeSerialport();
+        send_timer->start(SENDTIME);
+        autosend_flag=true;
+        while(!reply_flag)
+        {
+            QCoreApplication::processEvents();
+        }
+        send_timer->stop();
+        autosend_flag=false;
+        reply_flag=false;
+    }
 }
 
 quint8 MainWindow::addLine(quint8 id)
@@ -211,4 +240,126 @@ quint8 MainWindow::addLine(quint8 id)
     int r=temp_id/36;
     ui->widget->graph(temp_id)->setPen(QPen(QColor(r*51,g*51,b*51)));
     return temp_id;
+}
+
+void MainWindow::addTask()
+{
+    ui->taskBox->setCurrentText(QString::number(max_task_id));
+    changeTask(ui->taskBox->currentIndex());
+    if(ui->editEndX->text().isEmpty() && ui->editEndY->text().isEmpty())
+    {
+        QString dlgTitle="错误";
+        QString strInfo="请先填写坐标信息!";
+        QMessageBox::critical(this,dlgTitle,strInfo);
+        return;
+    }
+    ui->editID->clear();
+    ui->editEndX->clear();
+    ui->editEndY->clear();
+    ui->taskBox->addItem(QString::number(max_task_id));
+    ui->taskBox->setCurrentText(QString::number(max_task_id));
+    ui->deleteTaskButton->setEnabled(true);
+}
+
+void MainWindow::deleteTask()
+{
+    int index=ui->taskBox->currentText().toInt();
+    ui->taskBox->removeItem(ui->taskBox->currentIndex());
+    task_list.removeAt(task_id_list.indexOf(index));
+    task_id_list.removeAt(task_id_list.indexOf(index));
+    if(task_id_list.size()==1)
+    {
+        ui->deleteTaskButton->setEnabled(false);
+    }
+    ui->taskBox->setCurrentText(QString::number(task_id_list[0]));
+    changeTask(0);
+}
+
+void MainWindow::changeTask(int i)
+{
+    Q_UNUSED(i);
+    int index=task_id_list.indexOf(ui->taskBox->currentText().toInt());
+    if(index==-1)
+    {
+        ui->editID->clear();
+        ui->editEndX->clear();
+        ui->editEndY->clear();
+        return;
+    }
+    ui->editID->setText(QString::number(task_list[index].id));
+    ui->editEndX->setText(QString::number(task_list[index].x));
+    ui->editEndY->setText(QString::number(task_list[index].y));
+}
+
+void MainWindow::updateMapSize()
+{
+    if(ui->editMapX->text().isEmpty() || ui->editMapY->text().isEmpty())
+    {
+        QString dlgTitle="错误";
+        QString strInfo="请先填写地图信息!";
+        QMessageBox::critical(this,dlgTitle,strInfo);
+        return;
+    }
+    int x=ui->editMapX->text().toInt();
+    int y=ui->editMapY->text().toInt();
+    ui->widget->xAxis->setRange(0,x);//设置x轴长度
+    ui->widget->yAxis->setRange(0,y);//设置y轴长度
+    ui->widget->replot();
+    collision->createMap(x,y);
+}
+
+void MainWindow::postTaskInfo()
+{
+    quint8 buffer[PACKET_LENGTH];
+    int sum=0;
+    if(!autosend_flag)
+    {
+        for(int i=0;i<task_list.size();i++)
+        {
+            buffer[0]=task_list[i].id;
+            buffer[1]=TASK_CMD;
+            buffer[2]=(task_list[i].x&0xFF00)>>8;
+            buffer[3]=task_list[i].x&0x00FF;
+            buffer[4]=(task_list[i].y&0xFF00)>>8;
+            buffer[5]=task_list[i].y&0x00FF;
+            for(int j=0;j<6;j++)
+            {
+                sum+=buffer[j];
+            }
+            buffer[6]=(sum&0xFF00)>>8;
+            buffer[7]=sum&0x00FF;
+            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeSerialport();
+            send_timer->start(SENDTIME);
+            autosend_flag=true;
+            while(!reply_flag)
+            {
+                QCoreApplication::processEvents();
+            }
+            send_timer->stop();
+            autosend_flag=false;
+            reply_flag=false;
+        }
+    }
+}
+
+void MainWindow::recordEditedTask()
+{
+    int index=task_id_list.indexOf(ui->taskBox->currentText().toInt());
+    if(index==-1)
+    {
+        task newtask;
+        newtask.id=ui->editID->text().toInt();
+        newtask.x=ui->editEndX->text().toInt();
+        newtask.y=ui->editEndY->text().toInt();
+        task_list.append(newtask);
+        task_id_list.append(max_task_id);
+        max_task_id++;
+    }
+    else
+    {
+        task_list[index].id=ui->editID->text().toInt();
+        task_list[index].x=ui->editEndX->text().toInt();
+        task_list[index].y=ui->editEndY->text().toInt();
+    }
 }
