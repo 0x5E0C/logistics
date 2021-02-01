@@ -10,11 +10,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(timer,SIGNAL(timeout()),this,SLOT(searchSerialport()));
     connect(ui->openButton,SIGNAL(clicked()),this,SLOT(changeSerialState()));
     connect(ui->serialportBox,SIGNAL(activated(int)),this,SLOT(recordSerialChoice(int)));
-    connect(ui->newTaskButton,SIGNAL(clicked()),this,SLOT(addTask()));
-    connect(ui->deleteTaskButton,SIGNAL(clicked()),this,SLOT(deleteTask()));
-    connect(ui->postTaskButton,SIGNAL(clicked()),this,SLOT(postTaskInfo()));
-    connect(ui->syncButton,SIGNAL(clicked()),this,SLOT(syncCoordinateAxis()));
-    connect(ui->taskBox,SIGNAL(activated(int)),this,SLOT(changeTask(int)));
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
     connect(collision,SIGNAL(stopSignal(quint8,quint8)),this,SLOT(emitStopSignal(quint8,quint8)));
 }
@@ -29,7 +24,6 @@ void MainWindow::widgetInit()
     serial_state=CLOSESTATE;
     serial_choice="";
     max_line_id=0;
-    max_task_id=0;
     ui->openButton->setIcon(QPixmap(":/state/close.png"));
     ui->openButton->setText("打开串口");
     ui->widget->setInteractions(QCP::iSelectAxes|QCP::iSelectLegend|QCP::iSelectPlottables);
@@ -217,87 +211,4 @@ quint8 MainWindow::addLine(quint8 id)
     int r=temp_id/36;
     ui->widget->graph(temp_id)->setPen(QPen(QColor(r*51,g*51,b*51)));
     return temp_id;
-}
-
-void MainWindow::addTask()
-{
-    if(ui->editEndX->text().isEmpty() && ui->editEndY->text().isEmpty())
-    {
-        QString dlgTitle="错误";
-        QString strInfo="请先填写坐标信息!";
-        QMessageBox::critical(this,dlgTitle,strInfo);
-        return;
-    }
-    task newtask;
-    newtask.id=ui->editID->text().toInt();
-    newtask.x=ui->editEndX->text().toInt();
-    newtask.y=ui->editEndY->text().toInt();
-    ui->editID->clear();
-    ui->editEndX->clear();
-    ui->editEndY->clear();
-    task_list.append(newtask);
-    task_id_list.append(max_task_id);
-    max_task_id++;
-    ui->taskBox->addItem(QString::number(max_task_id));
-    ui->taskBox->setCurrentText(QString::number(max_task_id));
-    ui->deleteTaskButton->setEnabled(true);
-}
-
-void MainWindow::deleteTask()
-{
-    int index=ui->taskBox->currentText().toInt();
-    ui->taskBox->removeItem(ui->taskBox->currentIndex());
-    task_list.removeAt(task_id_list.indexOf(index));
-    task_id_list.removeAt(task_id_list.indexOf(index));
-    if(task_id_list.size()==1)
-    {
-        ui->deleteTaskButton->setEnabled(false);
-    }
-    ui->taskBox->setCurrentText(QString::number(task_id_list[0]));
-    changeTask(0);
-}
-
-void MainWindow::changeTask(int i)
-{
-    Q_UNUSED(i);
-    int index=task_id_list.indexOf(ui->taskBox->currentText().toInt());
-    if(index==-1)
-    {
-        ui->editID->clear();
-        ui->editEndX->clear();
-        ui->editEndY->clear();
-        return;
-    }
-    ui->editID->setText(QString::number(task_list[index].id));
-    ui->editEndX->setText(QString::number(task_list[index].x));
-    ui->editEndY->setText(QString::number(task_list[index].y));
-}
-
-void MainWindow::syncCoordinateAxis()
-{
-    quint8 buffer[9]={0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x05,0xFA};
-    writeSerialport(buffer,sizeof(buffer)/sizeof(quint8));
-}
-
-void MainWindow::postTaskInfo()
-{
-    quint8 buffer[9];
-    int sum=0;
-    for(int i=0;i<task_list.size();i++)
-    {
-        buffer[0]=task_list[i].id;
-        buffer[1]=(task_list[i].x>=0)?(0x00):(0x01);
-        buffer[2]=task_list[i].x/256;
-        buffer[3]=task_list[i].x%256;
-        buffer[4]=(task_list[i].y>=0)?(0x00):(0x01);
-        buffer[5]=task_list[i].y/256;
-        buffer[6]=task_list[i].y%256;
-        for(int j=0;j<9;j++)
-        {
-            sum+=buffer[j];
-        }
-        buffer[7]=sum/255;
-        buffer[8]=sum%256;
-    }
-    writeSerialport(buffer,sizeof(buffer)/sizeof(quint8));
 }
