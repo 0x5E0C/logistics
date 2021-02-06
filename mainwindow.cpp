@@ -158,9 +158,18 @@ void MainWindow::writeSerialport()
 
 void MainWindow::readSerialport()
 {
-    quint8 *rec_buffer=(quint8*)serialport->readAll().data();
+    QByteArray src_data=serialport->readAll();
     quint8 line_id;
     quint16 sum=0;
+    int index;
+    rec_cache.append(src_data);
+    index=getDataIndex(rec_cache);
+    rec_cache=(index>0)?rec_cache.mid(index-1):rec_cache;
+    if(rec_cache.size()<PACKET_LENGTH)
+    {
+        return;
+    }
+    quint8 *rec_buffer=(quint8*)rec_cache.data();
     for(int i=0;i<6;i++)
     {
         sum+=rec_buffer[i];
@@ -169,8 +178,11 @@ void MainWindow::readSerialport()
     {
         return;
     }
+    qDebug()<<rec_cache.size();
+    rec_cache=rec_cache.mid(index+1);
+    qDebug()<<rec_cache.size();
     qint16 x=rec_buffer[2]<<8|rec_buffer[3];
-    qint16 y=rec_buffer[4]<<8|rec_buffer[5];;
+    qint16 y=rec_buffer[4]<<8|rec_buffer[5];
     if(rec_buffer[1]==REPLY_CMD)
     {
         reply_flag=true;
@@ -363,3 +375,20 @@ void MainWindow::recordEditedTask()
         task_list[index].y=ui->editEndY->text().toInt();
     }
 }
+
+int MainWindow::getDataIndex(QByteArray data)
+{
+    int reply_index,pos_index;
+    reply_index=data.indexOf(REPLY_CMD);
+    pos_index=data.indexOf(SENDPOS_CMD);
+    if(reply_index==-1)
+    {
+        return pos_index;
+    }
+    else if(pos_index==-1)
+    {
+        return reply_index;
+    }
+    return (reply_index<pos_index)?reply_index:pos_index;
+}
+

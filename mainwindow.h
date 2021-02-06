@@ -58,10 +58,12 @@ private:
     detector *collision = new detector();
     bool reply_flag,autosend_flag;
     quint8 send_buffer[PACKET_LENGTH];
+    QByteArray rec_cache;
     void widgetInit();
     bool openSerialport();
     void closeSerialport();
     quint8 addLine(quint8 id);
+    int getDataIndex(QByteArray data);
 
 private slots:
    void changeSerialState();

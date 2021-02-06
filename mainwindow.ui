@@ -206,7 +206,7 @@
      <rect>
       <x>810</x>
       <y>180</y>
-      <width>201</width>
+      <width>211</width>
       <height>251</height>
      </rect>
     </property>
@@ -314,6 +314,9 @@
        <height>23</height>
       </rect>
      </property>
+     <property name="text">
+      <string>70</string>
+     </property>
     </widget>
     <widget class="QLineEdit" name="editEndY">
      <property name="enabled">
@@ -326,6 +329,9 @@
        <width>51</width>
        <height>23</height>
       </rect>
+     </property>
+     <property name="text">
+      <string>250</string>
      </property>
     </widget>
     <widget class="QPushButton" name="deleteTaskButton">
@@ -388,6 +394,9 @@
        <height>23</height>
       </rect>
      </property>
+     <property name="text">
+      <string>1</string>
+     </property>
     </widget>
    </widget>
    <widget class="QGroupBox" name="groupBox_3">
@@ -395,7 +404,7 @@
      <rect>
       <x>810</x>
       <y>440</y>
-      <width>201</width>
+      <width>211</width>
       <height>151</height>
      </rect>
     </property>
@@ -405,9 +414,9 @@
     <widget class="QPushButton" name="updateMapButton">
      <property name="geometry">
       <rect>
-       <x>50</x>
+       <x>60</x>
        <y>100</y>
-       <width>101</width>
+       <width>91</width>
        <height>31</height>
       </rect>
      </property>
@@ -431,7 +440,7 @@
     <widget class="QLabel" name="label_8">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>20</x>
        <y>62</y>
        <width>21</width>
        <height>16</height>
@@ -444,7 +453,7 @@
     <widget class="QLabel" name="label_10">
      <property name="geometry">
       <rect>
-       <x>110</x>
+       <x>120</x>
        <y>62</y>
        <width>21</width>
        <height>16</height>
@@ -457,21 +466,27 @@
     <widget class="QLineEdit" name="editMapX">
      <property name="geometry">
       <rect>
-       <x>30</x>
+       <x>40</x>
        <y>60</y>
        <width>60</width>
        <height>23</height>
       </rect>
      </property>
+     <property name="text">
+      <string>110</string>
+     </property>
     </widget>
     <widget class="QLineEdit" name="editMapY">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>140</x>
        <y>60</y>
        <width>60</width>
        <height>23</height>
       </rect>
+     </property>
+     <property name="text">
+      <string>320</string>
      </property>
     </widget>
    </widget>
