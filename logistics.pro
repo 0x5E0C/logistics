@@ -21,11 +21,14 @@ SOURCES += \
     detector.cpp \
     main.cpp \
     mainwindow.cpp \
+    process.cpp \
     qcustomplot.cpp
 
 HEADERS += \
     detector.h \
     mainwindow.h \
+    process.h \
+    public.h \
     qcustomplot.h
 
 FORMS += \

@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->editEndY,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
     connect(collision,SIGNAL(stopSignal(quint8,quint8)),this,SLOT(emitStopSignal(quint8,quint8)));
+    connect(processor,SIGNAL(processed()),this,SLOT(startThread()));
+    connect(processor,SIGNAL(addGraph(int,QColor)),this,SLOT(addGraph(int,QColor)));
 }
 
 MainWindow::~MainWindow()
@@ -32,10 +34,12 @@ void MainWindow::widgetInit()
 {
     serial_state=CLOSESTATE;
     serial_choice="";
-    max_line_id=0;
     max_task_id=0;
     reply_flag=false;
     autosend_flag=false;
+    collision = new detector();
+    processor = new process(ui->widget,collision);
+    processor->setReplyFlag(&reply_flag);
     ui->openButton->setIcon(QPixmap(":/state/close.png"));
     ui->openButton->setText("打开串口");
     ui->widget->setInteractions(QCP::iSelectAxes|QCP::iSelectLegend|QCP::iSelectPlottables);
@@ -159,62 +163,16 @@ void MainWindow::writeSerialport()
 void MainWindow::readSerialport()
 {
     QByteArray src_data=serialport->readAll();
-    quint8 line_id;
-    quint16 sum=0;
-    int index;
-    rec_cache.append(src_data);
-    index=getDataIndex(rec_cache);
-    rec_cache=(index>0)?rec_cache.mid(index-1):rec_cache;
-    if(rec_cache.size()<PACKET_LENGTH)
+    processor->setCacheData(src_data);
+    if(!processor->isbusy)
     {
-        return;
-    }
-    quint8 *rec_buffer=(quint8*)rec_cache.data();
-    for(int i=0;i<6;i++)
-    {
-        sum+=rec_buffer[i];
-    }
-    if(sum!=(rec_buffer[6]<<8|rec_buffer[7]))
-    {
-        return;
-    }
-    qDebug()<<rec_cache.size();
-    rec_cache=rec_cache.mid(index+1);
-    qDebug()<<rec_cache.size();
-    qint16 x=rec_buffer[2]<<8|rec_buffer[3];
-    qint16 y=rec_buffer[4]<<8|rec_buffer[5];
-    if(rec_buffer[1]==REPLY_CMD)
-    {
-        reply_flag=true;
-    }
-    else if(rec_buffer[1]==SENDPOS_CMD)
-    {
-        if(id_list.indexOf(rec_buffer[0])==-1)
-        {
-            line_id=addLine(rec_buffer[0]);
-            line templine;
-            templine.x.append(x);
-            templine.y.append(y);
-            line_list.append(templine);
-        }
-        else
-        {
-            line_id=id_list.indexOf(rec_buffer[0]);
-            collision->clearPosInfo(line_list[line_id].x.last(),line_list[line_id].y.last());
-            line_list[line_id].x.append(x);
-            line_list[line_id].y.append(y);
-            ui->widget->graph(line_id)->setData(line_list[line_id].x,line_list[line_id].y,true);
-        }
-        collision->setCheckpoint(x,y,line_id);
-        collision->start();
-        ui->widget->replot();
+        processor->start();
     }
 }
-
 void MainWindow::emitStopSignal(quint8 line_id1,quint8 line_id2)
 {
-    quint8 id1=id_list[line_id1];
-    quint8 id2=id_list[line_id2];
+    quint8 id1=processor->getCarIdInIdList(line_id1);
+    quint8 id2=processor->getCarIdInIdList(line_id2);
     quint8 id=(id1>id2)?id1:id2;
     quint8 buffer[PACKET_LENGTH];
     if(!autosend_flag)
@@ -240,20 +198,6 @@ void MainWindow::emitStopSignal(quint8 line_id1,quint8 line_id2)
         reply_flag=false;
     }
 }
-
-quint8 MainWindow::addLine(quint8 id)
-{
-    quint8 temp_id=max_line_id;
-    id_list.append(id);
-    max_line_id++;
-    ui->widget->addGraph();
-    int b=temp_id%6;
-    int g=temp_id/6;
-    int r=temp_id/36;
-    ui->widget->graph(temp_id)->setPen(QPen(QColor(r*51,g*51,b*51)));
-    return temp_id;
-}
-
 void MainWindow::addTask()
 {
     ui->taskBox->setCurrentText(QString::number(max_task_id));
@@ -376,19 +320,14 @@ void MainWindow::recordEditedTask()
     }
 }
 
-int MainWindow::getDataIndex(QByteArray data)
+void MainWindow::startThread()
 {
-    int reply_index,pos_index;
-    reply_index=data.indexOf(REPLY_CMD);
-    pos_index=data.indexOf(SENDPOS_CMD);
-    if(reply_index==-1)
-    {
-        return pos_index;
-    }
-    else if(pos_index==-1)
-    {
-        return reply_index;
-    }
-    return (reply_index<pos_index)?reply_index:pos_index;
+    collision->start();
+    ui->widget->replot();
 }
 
+void MainWindow::addGraph(int id,QColor color)
+{
+    ui->widget->addGraph();
+    ui->widget->graph(id)->setPen(QPen(color));
+}

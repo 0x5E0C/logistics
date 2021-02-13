@@ -3,6 +3,7 @@
 
 #include <QThread>
 #include <QDebug>
+#include "public.h"
 
 #define formatXpos(x) (x/safe_distance+1)
 #define formatYpos(y) (y/safe_distance+1)
