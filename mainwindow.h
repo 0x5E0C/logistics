@@ -8,6 +8,7 @@
 #include "detector.h"
 #include "process.h"
 #include "public.h"
+#include "colorlib.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -52,7 +53,7 @@ private slots:
    void searchSerialport();
    void recordSerialChoice(int choice);
    void readSerialport();
-   void emitStopSignal(quint8 line_id1,quint8 line_id2);
+   void emitStopSignal(quint8 id1,quint8 id2);
    void addTask();
    void deleteTask();
    void changeTask(int i);
@@ -61,6 +62,6 @@ private slots:
    void writeSerialport();
    void recordEditedTask();
    void startThread();
-   void addGraph(int id,QColor color);
+   void addGraph();
 };
 #endif // MAINWINDOW_H

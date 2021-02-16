@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
     connect(collision,SIGNAL(stopSignal(quint8,quint8)),this,SLOT(emitStopSignal(quint8,quint8)));
     connect(processor,SIGNAL(processed()),this,SLOT(startThread()));
-    connect(processor,SIGNAL(addGraph(int,QColor)),this,SLOT(addGraph(int,QColor)));
+    connect(processor,SIGNAL(addGraph()),this,SLOT(addGraph()));
 }
 
 MainWindow::~MainWindow()
@@ -169,10 +169,8 @@ void MainWindow::readSerialport()
         processor->start();
     }
 }
-void MainWindow::emitStopSignal(quint8 line_id1,quint8 line_id2)
+void MainWindow::emitStopSignal(quint8 id1,quint8 id2)
 {
-    quint8 id1=processor->getCarIdInIdList(line_id1);
-    quint8 id2=processor->getCarIdInIdList(line_id2);
     quint8 id=(id1>id2)?id1:id2;
     quint8 buffer[PACKET_LENGTH];
     if(!autosend_flag)
@@ -326,8 +324,9 @@ void MainWindow::startThread()
     ui->widget->replot();
 }
 
-void MainWindow::addGraph(int id,QColor color)
+void MainWindow::addGraph()
 {
-    ui->widget->addGraph();
-    ui->widget->graph(id)->setPen(QPen(color));
+    QCPCurve *trajectory = new QCPCurve(ui->widget->xAxis, ui->widget->yAxis);
+    trajectory->setPen(QPen(colorlib[processor->trajectory_list.size()%16]));
+    processor->trajectory_list.append(trajectory);
 }

@@ -25,6 +25,7 @@ SOURCES += \
     qcustomplot.cpp
 
 HEADERS += \
+    colorlib.h \
     detector.h \
     mainwindow.h \
     process.h \

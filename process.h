@@ -12,19 +12,15 @@ class process : public QThread
     Q_OBJECT
 signals:
     void processed();
-    void addGraph(int id,QColor color);
+    void addGraph();
 
 public:
     process(QCustomPlot *w,detector *c);
-    typedef struct _line
-    {
-        QVector<double> x;
-        QVector<double> y;
-    }line;
     bool isbusy;
+    QVector<QVector<QCPCurveData>> trajectorydata_list;
+    QVector<QCPCurve*> trajectory_list;
     void setCacheData(QByteArray d);
     void setReplyFlag(bool *flag);
-    quint8 getCarIdInIdList(quint8 id);
 
 private:
     QByteArray cachedata;
@@ -32,10 +28,8 @@ private:
     QCustomPlot *plot;
     detector *collision;
     QList<quint8> id_list;
-    quint8 max_line_id;
-    QList<line> line_list;
     bool *reply_flag;
-    quint8 addLine(quint8 id);
+    void addLine(quint8 id);
     int getDataIndex(QByteArray data);
 
 protected:
