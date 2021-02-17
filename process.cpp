@@ -42,11 +42,6 @@ void process::run()
         }
         if(sum!=(rec_buffer[6]<<8|rec_buffer[7]))
         {
-            for(int i=0;i<6;i++)
-            {
-                qDebug()<<rec_buffer[i];
-            }
-            qDebug()<<rec_buffer[6]<<rec_buffer[7]<<sum<<(rec_buffer[6]<<8|rec_buffer[7]);
             continue;
         }
         qint16 x=rec_buffer[2]<<8|rec_buffer[3];
