@@ -62,7 +62,7 @@ void process::run()
             else
             {
                 trajectory_index=id_list.indexOf(rec_buffer[0]);
-                collision->clearPosInfo(trajectorydata_list[trajectory_index].last().key,trajectorydata_list[trajectory_index].last().value);
+                collision->clearPosInfo(trajectorydata_list[trajectory_index].last().key,trajectorydata_list[trajectory_index].last().value,rec_buffer[0]);
                 trajectorydata_list[trajectory_index].append(QCPCurveData(trajectorydata_list[trajectory_index].size(),x,y));
                 trajectory_list[trajectory_index]->data()->set(trajectorydata_list[trajectory_index],true);
             }
