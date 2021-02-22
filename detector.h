@@ -11,30 +11,29 @@
 #define getArray(x,y)        (map+y*array_size.xsize+x)
 #define getArrayFromPos(x,y) getArray(formatXpos(x),formatYpos(y))
 
-const int safe_distance=65;
-typedef struct pos_info
+struct pos_info
 {
-    int x;
-    int y;
-    bool exist;
-    int index;
-} pos_info;
+    QList<int> *x;
+    QList<int> *y;
+    QList<quint8> *id;
+};
 
 class detector : public QThread
 {
     Q_OBJECT
 signals:
-    void stopSignal(quint8 line_id1,quint8 line_id2);
+    void stopSignal();
 
 public:
     detector();
-    QList<QList<quint8>> queue;
+    QList<quint8> queue;
     void createMap(int xsize,int ysize);
     void clearPosInfo(int xpos,int ypos,quint8 id);
     void setPosInfo(int xpos,int ypos,quint8 id);
     void setCheckpoint(int xpos,int ypos,quint8 id);
 
 private:
+    const int safe_distance=50;
     pos_info *map;
     struct array_size
     {
@@ -48,6 +47,7 @@ private:
         quint8 id;
     }pending_info;
     void startDetector(int array_x,int array_y);
+    void emitStopSignals();
 
 protected:
     void run();

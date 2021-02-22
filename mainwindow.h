@@ -53,7 +53,7 @@ private slots:
    void searchSerialport();
    void recordSerialChoice(int choice);
    void readSerialport();
-   void emitStopSignal(quint8 id1,quint8 id2);
+   void emitStopSignal();
    void addTask();
    void deleteTask();
    void changeTask(int i);

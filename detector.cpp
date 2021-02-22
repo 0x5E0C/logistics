@@ -17,45 +17,28 @@ void detector::createMap(int xsize,int ysize)
     array_size.xsize+=2;
     array_size.ysize+=2;
     map=(pos_info*)malloc(array_size.xsize*array_size.ysize*sizeof(pos_info));
-    memset(map,-1,array_size.xsize*array_size.ysize*sizeof(pos_info));
+    memset(map,0,array_size.xsize*array_size.ysize*sizeof(pos_info));
+    for(int i=0;i<array_size.xsize*array_size.ysize;i++)
+    {
+        (map+i)->x=new QList<int>;
+        (map+i)->y=new QList<int>;
+        (map+i)->id=new QList<quint8>;
+    }
 }
 
 void detector::clearPosInfo(int xpos,int ypos,quint8 id)
 {
-    getArrayFromPos(xpos,ypos)->x=0;
-    getArrayFromPos(xpos,ypos)->y=0;
-    getArrayFromPos(xpos,ypos)->exist=false;
-    if(queue[getArrayFromPos(xpos,ypos)->index].size()==1)
-    {
-        queue.removeAt(getArrayFromPos(xpos,ypos)->index);
-        qDebug()<<"removeAll";
-    }
-    else
-    {
-        queue[getArrayFromPos(xpos,ypos)->index].removeOne(id);
-        qDebug()<<"removeAt";
-    }
-    getArrayFromPos(xpos,ypos)->index=-1;
+    int index=getArrayFromPos(xpos,ypos)->id->indexOf(id);
+    getArrayFromPos(xpos,ypos)->x->removeAt(index);
+    getArrayFromPos(xpos,ypos)->y->removeAt(index);
+    getArrayFromPos(xpos,ypos)->id->removeAt(index);
 }
 
 void detector::setPosInfo(int xpos,int ypos,quint8 id)
 {
-    getArrayFromPos(xpos,ypos)->x=xpos;
-    getArrayFromPos(xpos,ypos)->y=ypos;
-    getArrayFromPos(xpos,ypos)->exist=true;
-    if(getArrayFromPos(xpos,ypos)->index==-1)
-    {
-        QList<quint8> id_list;
-        id_list.append(id);
-        getArrayFromPos(xpos,ypos)->index=queue.size();
-        queue.append(id_list);
-        qDebug()<<"set";
-    }
-    else
-    {
-        queue[getArrayFromPos(xpos,ypos)->index].append(id);
-        qDebug()<<"new";
-    }
+    getArrayFromPos(xpos,ypos)->x->append(xpos);
+    getArrayFromPos(xpos,ypos)->y->append(ypos);
+    getArrayFromPos(xpos,ypos)->id->append(id);
 }
 
 void detector::setCheckpoint(int xpos,int ypos,quint8 id)
@@ -63,37 +46,48 @@ void detector::setCheckpoint(int xpos,int ypos,quint8 id)
     pending_info.x=xpos;
     pending_info.y=ypos;
     pending_info.id=id;
-    if(getArrayFromPos(pending_info.x,pending_info.y)->exist==true)
+    if(!getArrayFromPos(xpos,ypos)->id->isEmpty())
     {
-        qDebug()<<"crash";
-        //emit stopSignal(pending_info.id,getArrayFromPos(pending_info.x,pending_info.y)->lineid);
+        queue.append(*getArrayFromPos(xpos,ypos)->id);
+        queue.append(id);
+        emitStopSignals();
     }
-    else
-    {
-        setPosInfo(xpos,ypos,id);
-    }
+    setPosInfo(xpos,ypos,id);
 }
 
 void detector::startDetector(int array_x,int array_y)
 {
-    for(int i=array_x-1;i<array_x+2;i++)
+    int index_x=formatXpos(pending_info.x);
+    int index_y=formatYpos(pending_info.y);
+    queue.clear();
+    for(int i=array_x-1;i<=array_x+1;i++)
     {
-        for(int j=array_y-1;j<array_y+2;j++)
+        for(int j=array_y-1;j<=array_y+1;j++)
         {
-            if(i==array_x && j==array_y)
+            if(!getArray(i,j)->id->isEmpty() && i!=index_x && j!=index_y)
             {
-                continue;
-            }
-            if(getArray(i,j)->exist==true)
-            {
-                if(sqrt((getArray(i,j)->x-pending_info.x)*(getArray(i,j)->x-pending_info.x)+
-                        (getArray(i,j)->y-pending_info.y)*(getArray(i,j)->y-pending_info.y))<safe_distance)
+                for(int k=0;k<getArray(i,j)->id->size();k++)
                 {
-                    qDebug()<<"emit";
-                    return;
-                    //emit stopSignal(pending_info.id,getArrayFromPos(pending_info.x,pending_info.y)->lineid);
+                    qDebug()<<pending_info.x<<pending_info.y<<getArray(i,j)->y->at(k)<<getArray(i,j)->y->at(k);
+                    if(sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
+                           +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y))<safe_distance)
+                    {
+                        queue.append(getArray(i,j)->id->at(i));
+                    }
                 }
             }
         }
     }
+    if(!queue.isEmpty())
+    {
+        queue.append(pending_info.id);
+        emitStopSignals();
+    }
+}
+
+void detector::emitStopSignals()
+{
+    std::sort(queue.begin(),queue.end());
+    queue.removeAt(0);
+    emit stopSignal();
 }

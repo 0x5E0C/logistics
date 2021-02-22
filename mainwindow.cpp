@@ -20,7 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->editEndX,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(ui->editEndY,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
-    connect(collision,SIGNAL(stopSignal(quint8,quint8)),this,SLOT(emitStopSignal(quint8,quint8)));
+    connect(collision,SIGNAL(stopSignal()),this,SLOT(emitStopSignal()));
     connect(processor,SIGNAL(processed()),this,SLOT(startThread()));
     connect(processor,SIGNAL(addGraph()),this,SLOT(addGraph()));
 }
@@ -169,31 +169,35 @@ void MainWindow::readSerialport()
         processor->start();
     }
 }
-void MainWindow::emitStopSignal(quint8 id1,quint8 id2)
+void MainWindow::emitStopSignal()
 {
-    quint8 id=(id1>id2)?id1:id2;
     quint8 buffer[PACKET_LENGTH];
+    quint8 id;
     if(!autosend_flag)
     {
-        buffer[0]=id;
-        buffer[1]=STOP_CMD;
-        buffer[2]=0x00;
-        buffer[3]=0x00;
-        buffer[4]=0x00;
-        buffer[5]=0x00;
-        buffer[6]=((STOP_CMD+id)&0xFF00)>>8;
-        buffer[7]=(STOP_CMD+id)&0x00FF;
-        memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
-        writeSerialport();
-        send_timer->start(SENDTIME);
-        autosend_flag=true;
-        while(!reply_flag)
+        for(int i=0;i<collision->queue.size();i++)
         {
-            QCoreApplication::processEvents();
+            id=collision->queue.at(i);
+            buffer[0]=id;
+            buffer[1]=STOP_CMD;
+            buffer[2]=0x00;
+            buffer[3]=0x00;
+            buffer[4]=0x00;
+            buffer[5]=0x00;
+            buffer[6]=((STOP_CMD+id)&0xFF00)>>8;
+            buffer[7]=(STOP_CMD+id)&0x00FF;
+            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeSerialport();
+            send_timer->start(SENDTIME);
+            autosend_flag=true;
+            while(!reply_flag)
+            {
+                QCoreApplication::processEvents();
+            }
+            send_timer->stop();
+            autosend_flag=false;
+            reply_flag=false;
         }
-        send_timer->stop();
-        autosend_flag=false;
-        reply_flag=false;
     }
 }
 void MainWindow::addTask()
