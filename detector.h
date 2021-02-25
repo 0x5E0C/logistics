@@ -11,6 +11,9 @@
 #define getArray(x,y)        (map+y*array_size.xsize+x)
 #define getArrayFromPos(x,y) getArray(formatXpos(x),formatYpos(y))
 
+#define WAIT_FLAG  0
+#define CHECK_FLAG 1
+
 struct pos_info
 {
     QList<int> *x;
@@ -22,19 +25,26 @@ class detector : public QThread
 {
     Q_OBJECT
 signals:
-    void stopSignal();
+    void stopSignal(QList<quint8> q);
+    void waitSignal(QList<quint8> q);
+    void advSignal(quint8 id);
+
 
 public:
     detector();
-    QList<quint8> queue;
+    QList<quint8> queue,wait_queue,stop_queue;
     void createMap(int xsize,int ysize);
     void clearPosInfo(int xpos,int ypos,quint8 id);
     void setPosInfo(int xpos,int ypos,quint8 id);
-    void setCheckpoint(int xpos,int ypos,quint8 id);
+    void setCheckPoint(int xpos,int ypos,quint8 id);
+    void setWaitPoint(int xpos,int ypos,quint8 id);
+    void setTaskMode(int mode);
 
 private:
-    const int safe_distance=50;
+    const int safe_distance=30;
     pos_info *map;
+    bool task_flag;
+    bool jam_flag;
     struct array_size
     {
         int xsize;
@@ -47,7 +57,8 @@ private:
         quint8 id;
     }pending_info;
     void startDetector(int array_x,int array_y);
-    void emitStopSignals();
+    void emitRegSignals();
+    void emitAdvSignals();
 
 protected:
     void run();

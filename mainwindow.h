@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <QMetaType>
 #include "qcustomplot.h"
 #include "detector.h"
 #include "process.h"
@@ -53,7 +54,9 @@ private slots:
    void searchSerialport();
    void recordSerialChoice(int choice);
    void readSerialport();
-   void emitStopSignal();
+   void emitStopSignal(QList<quint8> q);
+   void emitWaitSignal(QList<quint8> q);
+   void emitAdvSignal(quint8 id);
    void addTask();
    void deleteTask();
    void changeTask(int i);

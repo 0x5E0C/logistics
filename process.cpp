@@ -21,52 +21,60 @@ void process::run()
 {
     quint8 trajectory_index;
     quint16 sum;
+    int index;
     isbusy=true;
     while((cachedata.size()+rec_data.size())>=PACKET_LENGTH)
     {
         rec_data.append(cachedata);
         cachedata.clear();
-        int index=getDataIndex(rec_data);
+        index=getDataIndex(rec_data);
         if(index==-1)
         {
             rec_data.clear();
             continue;
         }
-        rec_data=(index>0)?rec_data.mid(index-1):rec_data;
-        quint8 *rec_buffer=(quint8*)rec_data.data();
+        QByteArray tempbuffer=rec_data.mid(index,PACKET_LENGTH);
+        quint8 *rec_buffer=(quint8*)tempbuffer.data();
         rec_data=rec_data.mid(index+1);
         sum=0;
-        for(int i=0;i<6;i++)
+        for(int i=0;i<8;i++)
         {
             sum+=rec_buffer[i];
         }
-        if(sum!=(rec_buffer[6]<<8|rec_buffer[7]))
+        if(sum!=(rec_buffer[8]<<8|rec_buffer[9]))
         {
+            qDebug()<<tempbuffer.toHex()<<sum<<(rec_buffer[8]<<8|rec_buffer[9])<<rec_buffer[8]<<rec_buffer[9];
             continue;
         }
-        qint16 x=rec_buffer[2]<<8|rec_buffer[3];
-        qint16 y=rec_buffer[4]<<8|rec_buffer[5];
-        if(rec_buffer[1]==REPLY_CMD)
+        quint8 id=rec_buffer[2];
+        qint16 x=rec_buffer[4]<<8|rec_buffer[5];
+        qint16 y=rec_buffer[6]<<8|rec_buffer[7];
+        if(rec_buffer[3]==REPLY_CMD)
         {
             *reply_flag=true;
         }
-        else if(rec_buffer[1]==SENDPOS_CMD)
+        else if(rec_buffer[3]==SENDPOS_CMD)
         {
-            if(id_list.indexOf(rec_buffer[0])==-1)
+            if(id_list.indexOf(id)==-1)
             {
-                addLine(rec_buffer[0]);
+                addLine(id);
                 QVector<QCPCurveData> trajectory_data;
                 trajectory_data.append(QCPCurveData(0,x,y));
                 trajectorydata_list.append(trajectory_data);
             }
             else
             {
-                trajectory_index=id_list.indexOf(rec_buffer[0]);
-                collision->clearPosInfo(trajectorydata_list[trajectory_index].last().key,trajectorydata_list[trajectory_index].last().value,rec_buffer[0]);
+                trajectory_index=id_list.indexOf(id);
+                collision->clearPosInfo(trajectorydata_list[trajectory_index].last().key,trajectorydata_list[trajectory_index].last().value,id);
                 trajectorydata_list[trajectory_index].append(QCPCurveData(trajectorydata_list[trajectory_index].size(),x,y));
                 trajectory_list[trajectory_index]->data()->set(trajectorydata_list[trajectory_index],true);
             }
-            collision->setCheckpoint(x,y,rec_buffer[0]);
+            collision->setCheckPoint(x,y,id);
+            emit processed();
+        }
+        else if(rec_buffer[3]==WAIT_CMD)
+        {
+            collision->setWaitPoint(x,y,id);
             emit processed();
         }
     }
@@ -81,16 +89,13 @@ void process::addLine(quint8 id)
 
 int process::getDataIndex(QByteArray data)
 {
-    int reply_index,pos_index;
-    reply_index=data.indexOf(REPLY_CMD);
-    pos_index=data.indexOf(SENDPOS_CMD);
-    if(reply_index==-1)
+    int index=data.indexOf(0x5E);
+    if(index!=(data.size()-1))
     {
-        return pos_index;
+        if(data.at(index+1)==0x0C)
+        {
+            return index;
+        }
     }
-    else if(pos_index==-1)
-    {
-        return reply_index;
-    }
-    return (reply_index<pos_index)?reply_index:pos_index;
+    return -1;
 }

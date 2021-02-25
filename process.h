@@ -29,6 +29,7 @@ private:
     detector *collision;
     QList<quint8> id_list;
     bool *reply_flag;
+    void processData();
     void addLine(quint8 id);
     int getDataIndex(QByteArray data);
 

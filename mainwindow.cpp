@@ -20,7 +20,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->editEndX,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(ui->editEndY,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
-    connect(collision,SIGNAL(stopSignal()),this,SLOT(emitStopSignal()));
+    connect(collision,SIGNAL(stopSignal(QList<quint8>)),this,SLOT(emitStopSignal(QList<quint8>)));
+    connect(collision,SIGNAL(waitSignal(QList<quint8>)),this,SLOT(emitWaitSignal(QList<quint8>)));
+    connect(collision,SIGNAL(advSignal(quint8)),this,SLOT(emitAdvSignal(quint8)));
     connect(processor,SIGNAL(processed()),this,SLOT(startThread()));
     connect(processor,SIGNAL(addGraph()),this,SLOT(addGraph()));
 }
@@ -44,6 +46,7 @@ void MainWindow::widgetInit()
     ui->openButton->setText("打开串口");
     ui->widget->setInteractions(QCP::iSelectAxes|QCP::iSelectLegend|QCP::iSelectPlottables);
     timer->start(BASETIME);
+    qRegisterMetaType<QList<quint8>>("QList<quint8>");
 }
 
 void MainWindow::changeSerialState()
@@ -169,23 +172,27 @@ void MainWindow::readSerialport()
         processor->start();
     }
 }
-void MainWindow::emitStopSignal()
+
+void MainWindow::emitStopSignal(QList<quint8> q)
 {
     quint8 buffer[PACKET_LENGTH];
     quint8 id;
     if(!autosend_flag)
     {
-        for(int i=0;i<collision->queue.size();i++)
+        for(int i=0;i<q.size();i++)
         {
-            id=collision->queue.at(i);
-            buffer[0]=id;
-            buffer[1]=STOP_CMD;
-            buffer[2]=0x00;
-            buffer[3]=0x00;
+            id=q.at(i);
+            buffer[0]=0x5E;
+            buffer[1]=0x0C;
+            buffer[2]=id;
+            buffer[3]=(i==0)?ADV_CMD:STOP_CMD;
             buffer[4]=0x00;
             buffer[5]=0x00;
-            buffer[6]=((STOP_CMD+id)&0xFF00)>>8;
-            buffer[7]=(STOP_CMD+id)&0x00FF;
+            buffer[6]=0x00;
+            buffer[7]=0x00;
+            buffer[8]=((WAIT_CMD+id+0x6A)&0xFF00)>>8;
+            buffer[9]=(WAIT_CMD+id+0x6A)&0x00FF;
+            //qDebug()<<collision->queue.size()<<i;
             memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
             writeSerialport();
             send_timer->start(SENDTIME);
@@ -200,6 +207,70 @@ void MainWindow::emitStopSignal()
         }
     }
 }
+
+void MainWindow::emitWaitSignal(QList<quint8> q)
+{
+    quint8 buffer[PACKET_LENGTH];
+    quint8 id;
+    if(!autosend_flag)
+    {
+        for(int i=0;i<q.size();i++)
+        {
+            id=q[i];
+            buffer[0]=0x5E;
+            buffer[1]=0x0C;
+            buffer[2]=id;
+            buffer[3]=(i==0)?ADV_CMD:WAIT_CMD;
+            buffer[4]=0x00;
+            buffer[5]=0x00;
+            buffer[6]=0x00;
+            buffer[7]=0x00;
+            buffer[8]=((WAIT_CMD+id+0x6A)&0xFF00)>>8;
+            buffer[9]=(WAIT_CMD+id+0x6A)&0x00FF;
+            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeSerialport();
+            send_timer->start(SENDTIME);
+            autosend_flag=true;
+            while(!reply_flag)
+            {
+                QCoreApplication::processEvents();
+            }
+            send_timer->stop();
+            autosend_flag=false;
+            reply_flag=false;
+        }
+    }
+}
+
+void MainWindow::emitAdvSignal(quint8 id)
+{
+    quint8 buffer[PACKET_LENGTH];
+    if(!autosend_flag)
+    {
+        buffer[0]=0x5E;
+        buffer[1]=0x0C;
+        buffer[2]=id;
+        buffer[3]=ADV_CMD;
+        buffer[4]=0x00;
+        buffer[5]=0x00;
+        buffer[6]=0x00;
+        buffer[7]=0x00;
+        buffer[8]=((ADV_CMD+id+0x6A)&0xFF00)>>8;
+        buffer[9]=(ADV_CMD+id+0x6A)&0x00FF;
+        memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+        writeSerialport();
+        send_timer->start(SENDTIME);
+        autosend_flag=true;
+        while(!reply_flag)
+        {
+            QCoreApplication::processEvents();
+        }
+        send_timer->stop();
+        autosend_flag=false;
+        reply_flag=false;
+    }
+}
+
 void MainWindow::addTask()
 {
     ui->taskBox->setCurrentText(QString::number(max_task_id));
@@ -274,18 +345,20 @@ void MainWindow::postTaskInfo()
     {
         for(int i=0;i<task_list.size();i++)
         {
-            buffer[0]=task_list[i].id;
-            buffer[1]=TASK_CMD;
-            buffer[2]=(task_list[i].x&0xFF00)>>8;
-            buffer[3]=task_list[i].x&0x00FF;
-            buffer[4]=(task_list[i].y&0xFF00)>>8;
-            buffer[5]=task_list[i].y&0x00FF;
-            for(int j=0;j<6;j++)
+            buffer[0]=0x5E;
+            buffer[1]=0x0C;
+            buffer[2]=task_list[i].id;
+            buffer[3]=TASK_CMD;
+            buffer[4]=(task_list[i].x&0xFF00)>>8;
+            buffer[5]=task_list[i].x&0x00FF;
+            buffer[6]=(task_list[i].y&0xFF00)>>8;
+            buffer[7]=task_list[i].y&0x00FF;
+            for(int j=0;j<8;j++)
             {
                 sum+=buffer[j];
             }
-            buffer[6]=(sum&0xFF00)>>8;
-            buffer[7]=sum&0x00FF;
+            buffer[8]=(sum&0xFF00)>>8;
+            buffer[9]=sum&0x00FF;
             memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
             writeSerialport();
             send_timer->start(SENDTIME);
