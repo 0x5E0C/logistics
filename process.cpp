@@ -51,6 +51,7 @@ void process::run()
         qint16 y=rec_buffer[6]<<8|rec_buffer[7];
         if(rec_buffer[3]==REPLY_CMD)
         {
+            qDebug()<<"reply";
             *reply_flag=true;
         }
         else if(rec_buffer[3]==SENDPOS_CMD)

@@ -190,9 +190,8 @@ void MainWindow::emitStopSignal(QList<quint8> q)
             buffer[5]=0x00;
             buffer[6]=0x00;
             buffer[7]=0x00;
-            buffer[8]=((WAIT_CMD+id+0x6A)&0xFF00)>>8;
-            buffer[9]=(WAIT_CMD+id+0x6A)&0x00FF;
-            //qDebug()<<collision->queue.size()<<i;
+            buffer[8]=((buffer[3]+id+0x6A)&0xFF00)>>8;
+            buffer[9]=(buffer[3]+id+0x6A)&0x00FF;
             memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
             writeSerialport();
             send_timer->start(SENDTIME);
@@ -225,8 +224,8 @@ void MainWindow::emitWaitSignal(QList<quint8> q)
             buffer[5]=0x00;
             buffer[6]=0x00;
             buffer[7]=0x00;
-            buffer[8]=((WAIT_CMD+id+0x6A)&0xFF00)>>8;
-            buffer[9]=(WAIT_CMD+id+0x6A)&0x00FF;
+            buffer[8]=((buffer[3]+id+0x6A)&0xFF00)>>8;
+            buffer[9]=(buffer[3]+id+0x6A)&0x00FF;
             memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
             writeSerialport();
             send_timer->start(SENDTIME);
@@ -353,6 +352,7 @@ void MainWindow::postTaskInfo()
             buffer[5]=task_list[i].x&0x00FF;
             buffer[6]=(task_list[i].y&0xFF00)>>8;
             buffer[7]=task_list[i].y&0x00FF;
+            sum=0;
             for(int j=0;j<8;j++)
             {
                 sum+=buffer[j];

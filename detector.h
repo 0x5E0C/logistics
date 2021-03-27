@@ -41,7 +41,7 @@ public:
     void setTaskMode(int mode);
 
 private:
-    const int safe_distance=30;
+    const int safe_distance=80;
     pos_info *map;
     bool task_flag;
     bool jam_flag;

@@ -91,6 +91,8 @@ void detector::startDetector(int array_x,int array_y)
                 {
                     for(int k=0;k<getArray(i,j)->id->size();k++)
                     {
+                        qDebug()<<sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
+                                       +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y));
                         if(sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
                                +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y))<safe_distance)
                         {
@@ -118,6 +120,7 @@ void detector::emitRegSignals()
     std::sort(queue.begin(),queue.end());
     if(queue.size()==2)
     {
+        qDebug()<<"1111111111111111111111111111111111111111111111111";
         emit waitSignal(queue);
     }
     else if(queue.size()>2)
