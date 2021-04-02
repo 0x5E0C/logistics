@@ -12,6 +12,7 @@ void UpdateAttitude()
 	{
 		Stop();
 		Set_TIM1_Disable();
+		finish_task_flag=true;
 	}
 	else
 	{

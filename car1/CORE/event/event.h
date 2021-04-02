@@ -8,19 +8,14 @@
 #define SENDPOS_CMD	0x05
 #define STOP_CMD    0x06
 
-#define WAIT_STATE	WAIT_CMD
-#define STOP_STATE  STOP_CMD
-
 #include "bsp.h"
 
 extern u8 tx_buffer[PACKET_LENGTH];
-extern u8 car_state;
-
+extern bool finish_task_flag;
 
 void GetBroadcastInfo(void);
 void Reply(void);
 void TxBuffer_Init(void);
 bool CheckData(void);
-void SendCurrentPos(void);
 
 #endif
