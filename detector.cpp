@@ -2,7 +2,7 @@
 
 detector::detector()
 {
-
+    isbusy=false;
 }
 
 void detector::run()
@@ -29,9 +29,15 @@ void detector::createMap(int xsize,int ysize)
 void detector::clearPosInfo(int xpos,int ypos,quint8 id)
 {
     int index=getArrayFromPos(xpos,ypos)->id->indexOf(id);
+    if(index==-1)
+    {
+        return;
+    }
+    //qDebug()<<"before clear:"<<*getArrayFromPos(xpos,ypos)->id;
     getArrayFromPos(xpos,ypos)->x->removeAt(index);
     getArrayFromPos(xpos,ypos)->y->removeAt(index);
-    getArrayFromPos(xpos,ypos)->id->removeAt(index);
+    getArrayFromPos(xpos,ypos)->id->removeAll(id);
+    //qDebug()<<"after clear:"<<*getArrayFromPos(xpos,ypos)->id;
 }
 
 void detector::setPosInfo(int xpos,int ypos,quint8 id)
@@ -46,90 +52,65 @@ void detector::setCheckPoint(int xpos,int ypos,quint8 id)
     pending_info.x=xpos;
     pending_info.y=ypos;
     pending_info.id=id;
-    task_flag=CHECK_FLAG;
-    if(!getArrayFromPos(xpos,ypos)->id->isEmpty())
-    {
-        queue.append(*getArrayFromPos(xpos,ypos)->id);
-        queue.append(id);
-        emitRegSignals();
-    }
+//    if(!getArrayFromPos(xpos,ypos)->id->isEmpty())
+//    {
+//        queue.clear();
+//        queue.append(*getArrayFromPos(xpos,ypos)->id);
+//        queue.append(id);
+//        qDebug()<<"set:"<<queue;
+//        emitRegSignals();
+//    }
+    //qDebug()<<"before set:"<<*getArrayFromPos(xpos,ypos)->id;
     setPosInfo(xpos,ypos,id);
-}
-
-void detector::setWaitPoint(int xpos,int ypos,quint8 id)
-{
-    pending_info.x=xpos;
-    pending_info.y=ypos;
-    pending_info.id=id;
-    task_flag=WAIT_FLAG;
-    if(!getArrayFromPos(xpos,ypos)->id->isEmpty())
-    {
-        QList<quint8> temp;
-        temp=*getArrayFromPos(xpos,ypos)->id;
-        temp.removeOne(id);
-        if(temp.isEmpty())
-        {
-            jam_flag=false;
-            return;
-        }
-    }
-    jam_flag=true;
+    //qDebug()<<"after set:"<<*getArrayFromPos(xpos,ypos)->id;
 }
 
 void detector::startDetector(int array_x,int array_y)
 {
-    int index_x=formatXpos(pending_info.x);
-    int index_y=formatYpos(pending_info.y);
+    isbusy=true;
     queue.clear();
     for(int i=array_x-1;i<=array_x+1;i++)
     {
         for(int j=array_y-1;j<=array_y+1;j++)
         {
-            if(!getArray(i,j)->id->isEmpty() && i!=index_x && j!=index_y)
+            if(!getArray(i,j)->id->isEmpty())
             {
-                if(task_flag==CHECK_FLAG)
+                for(int k=0;k<getArray(i,j)->id->size();k++)
                 {
-                    for(int k=0;k<getArray(i,j)->id->size();k++)
+                    //qDebug()<<sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
+                    //               +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y));
+                    if(sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
+                           +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y))<safe_distance)
                     {
-                        qDebug()<<sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
-                                       +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y));
-                        if(sqrt((getArray(i,j)->x->at(k)-pending_info.x)*(getArray(i,j)->x->at(k)-pending_info.x)
-                               +(getArray(i,j)->y->at(k)-pending_info.y)*(getArray(i,j)->y->at(k)-pending_info.y))<safe_distance)
+                        if(getArray(i,j)->id->at(k)!=pending_info.id)
                         {
-                            queue.append(getArray(i,j)->id->at(i));
+                            queue.append(getArray(i,j)->id->at(k));
+                            //qDebug()<<"check:"<<pending_info.id<<getArray(i,j)->id->at(k);
                         }
                     }
                 }
-                jam_flag=true;
             }
         }
     }
-    if(!queue.isEmpty() && task_flag==CHECK_FLAG)
+    //qDebug()<<"before queue:"<<queue;
+    if(!queue.isEmpty())
     {
         queue.append(pending_info.id);
         emitRegSignals();
     }
-    else if(jam_flag==false && task_flag==WAIT_FLAG)
+    else if(car_list.indexOf(pending_info.id)!=-1)
     {
-        emitAdvSignals();
+        if(car_state[car_list.indexOf(pending_info.id)]==STOP)
+        {
+            emit advSignal(pending_info.id);
+        }
     }
+    isbusy=false;
+    //qDebug()<<"after queue:"<<queue;
 }
 
 void detector::emitRegSignals()
 {
     std::sort(queue.begin(),queue.end());
-    if(queue.size()==2)
-    {
-        qDebug()<<"1111111111111111111111111111111111111111111111111";
-        emit waitSignal(queue);
-    }
-    else if(queue.size()>2)
-    {
-        emit stopSignal(queue);
-    }
-}
-
-void detector::emitAdvSignals()
-{
-    emit advSignal(pending_info.id);
+    emit regSignal();
 }

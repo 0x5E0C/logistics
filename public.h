@@ -4,6 +4,9 @@
 #define OPENSTATE   0
 #define CLOSESTATE  1
 
+#define ADV     true
+#define STOP    false
+
 #define BASETIME    500
 #define SENDTIME    100
 

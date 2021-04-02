@@ -10,27 +10,18 @@
 class process : public QThread
 {
     Q_OBJECT
-signals:
-    void processed();
-    void addGraph();
 
 public:
-    process(QCustomPlot *w,detector *c);
+    process();
     bool isbusy;
-    QVector<QVector<QCPCurveData>> trajectorydata_list;
-    QVector<QCPCurve*> trajectory_list;
     void setCacheData(QByteArray d);
     void setReplyFlag(bool *flag);
 
 private:
     QByteArray cachedata;
     QByteArray rec_data;
-    QCustomPlot *plot;
-    detector *collision;
-    QList<quint8> id_list;
     bool *reply_flag;
     void processData();
-    void addLine(quint8 id);
     int getDataIndex(QByteArray data);
 
 protected:

@@ -8,9 +8,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     widgetInit();
     connect(timer,SIGNAL(timeout()),this,SLOT(searchSerialport()));
-    connect(send_timer,SIGNAL(timeout()),this,SLOT(writeSerialport()));
-    connect(ui->openButton,SIGNAL(clicked()),this,SLOT(changeSerialState()));
-    connect(ui->serialportBox,SIGNAL(activated(int)),this,SLOT(recordSerialChoice(int)));
+    connect(send_timer,SIGNAL(timeout()),this,SLOT(writeZigbeeSerialport()));
+    connect(ui->zigbee_openButton,SIGNAL(clicked()),this,SLOT(changeZigbeeSerialState()));
+    connect(ui->zigbee_serialportBox,SIGNAL(activated(int)),this,SLOT(recordZigbeeSerialChoice(int)));
+    connect(ui->uwb_openButton,SIGNAL(clicked()),this,SLOT(changeUWBSerialState()));
+    connect(ui->uwb_serialportBox,SIGNAL(activated(int)),this,SLOT(recordUWBSerialChoice(int)));
     connect(ui->newTaskButton,SIGNAL(clicked()),this,SLOT(addTask()));
     connect(ui->deleteTaskButton,SIGNAL(clicked()),this,SLOT(deleteTask()));
     connect(ui->postTaskButton,SIGNAL(clicked()),this,SLOT(postTaskInfo()));
@@ -19,12 +21,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->editID,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(ui->editEndX,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
     connect(ui->editEndY,SIGNAL(textEdited(const QString)),this,SLOT(recordEditedTask()));
-    connect(serialport,SIGNAL(readyRead()),this,SLOT(readSerialport()));
+    connect(zigbee_serialport,SIGNAL(readyRead()),this,SLOT(readZigbeeSerialport()));
+    connect(uwb_serialport,SIGNAL(readyRead()),this,SLOT(readUWBSerialport()));
     connect(collision,SIGNAL(stopSignal(QList<quint8>)),this,SLOT(emitStopSignal(QList<quint8>)));
-    connect(collision,SIGNAL(waitSignal(QList<quint8>)),this,SLOT(emitWaitSignal(QList<quint8>)));
     connect(collision,SIGNAL(advSignal(quint8)),this,SLOT(emitAdvSignal(quint8)));
-    connect(processor,SIGNAL(processed()),this,SLOT(startThread()));
-    connect(processor,SIGNAL(addGraph()),this,SLOT(addGraph()));
+    connect(collision,SIGNAL(regSignal()),this,SLOT(emitRegSignals()));
 }
 
 MainWindow::~MainWindow()
@@ -34,45 +35,76 @@ MainWindow::~MainWindow()
 
 void MainWindow::widgetInit()
 {
-    serial_state=CLOSESTATE;
-    serial_choice="";
+    zigbee_serial_state=CLOSESTATE;
+    zigbee_serial_choice="";
+    uwb_serial_state=CLOSESTATE;
+    uwb_serial_choice="";
     max_task_id=0;
     reply_flag=false;
     autosend_flag=false;
     collision = new detector();
-    processor = new process(ui->widget,collision);
+    processor = new process();
     processor->setReplyFlag(&reply_flag);
-    ui->openButton->setIcon(QPixmap(":/state/close.png"));
-    ui->openButton->setText("打开串口");
+    ui->zigbee_openButton->setIcon(QPixmap(":/state/close.png"));
+    ui->zigbee_openButton->setText("打开串口");
+    ui->uwb_openButton->setIcon(QPixmap(":/state/close.png"));
+    ui->uwb_openButton->setText("打开定位");
     ui->widget->setInteractions(QCP::iSelectAxes|QCP::iSelectLegend|QCP::iSelectPlottables);
     timer->start(BASETIME);
     qRegisterMetaType<QList<quint8>>("QList<quint8>");
 }
 
-void MainWindow::changeSerialState()
+void MainWindow::changeZigbeeSerialState()
 {
-    if(serial_state==CLOSESTATE && openSerialport())
+    if(zigbee_serial_state==CLOSESTATE && openZigbeeSerialport())
     {
-        ui->openButton->setIcon(QPixmap(":/state/open.png"));
-        ui->openButton->setText("关闭串口");
-        serial_state=OPENSTATE;
+        ui->zigbee_openButton->setIcon(QPixmap(":/state/open.png"));
+        ui->zigbee_openButton->setText("关闭串口");
+        zigbee_serial_state=OPENSTATE;
     }
-    else if(serial_state==OPENSTATE)
+    else if(zigbee_serial_state==OPENSTATE)
     {
-        ui->openButton->setIcon(QPixmap(":/state/close.png"));
-        ui->openButton->setText("打开串口");
-        serial_state=CLOSESTATE;
-        closeSerialport();
+        ui->zigbee_openButton->setIcon(QPixmap(":/state/close.png"));
+        ui->zigbee_openButton->setText("打开串口");
+        zigbee_serial_state=CLOSESTATE;
+        closeZigbeeSerialport();
     }
 }
 
-void MainWindow::recordSerialChoice(int choice)
+void MainWindow::changeUWBSerialState()
 {
-    serial_choice=ui->serialportBox->itemText(choice);
-    if(serial_state==OPENSTATE)
+    if(uwb_serial_state==CLOSESTATE && openUWBSerialport())
     {
-        closeSerialport();
-        openSerialport();
+        ui->uwb_openButton->setIcon(QPixmap(":/state/open.png"));
+        ui->uwb_openButton->setText("取消定位");
+        uwb_serial_state=OPENSTATE;
+    }
+    else if(uwb_serial_state==OPENSTATE)
+    {
+        ui->uwb_openButton->setIcon(QPixmap(":/state/close.png"));
+        ui->uwb_openButton->setText("打开定位");
+        uwb_serial_state=CLOSESTATE;
+        closeUWBSerialport();
+    }
+}
+
+void MainWindow::recordZigbeeSerialChoice(int choice)
+{
+    zigbee_serial_choice=ui->zigbee_serialportBox->itemText(choice);
+    if(zigbee_serial_state==OPENSTATE)
+    {
+        closeZigbeeSerialport();
+        openZigbeeSerialport();
+    }
+}
+
+void MainWindow::recordUWBSerialChoice(int choice)
+{
+    uwb_serial_choice=ui->uwb_serialportBox->itemText(choice);
+    if(uwb_serial_state==OPENSTATE)
+    {
+        closeUWBSerialport();
+        openUWBSerialport();
     }
 }
 
@@ -81,9 +113,13 @@ void MainWindow::searchSerialport()
     QList<QString> temp_list;
     if(QSerialPortInfo::availablePorts().size()!=0)
     {
-        if(ui->serialportBox->itemText(0)=="")
+        if(ui->zigbee_serialportBox->itemText(0)=="")
         {
-            ui->serialportBox->removeItem(0);
+            ui->zigbee_serialportBox->removeItem(0);
+        }
+        if(ui->uwb_serialportBox->itemText(0)=="")
+        {
+            ui->uwb_serialportBox->removeItem(0);
         }
         if(serialport_list.isEmpty())
         {
@@ -93,7 +129,8 @@ void MainWindow::searchSerialport()
             }
             for(int i=0;i<serialport_list.size();i++)
             {
-                ui->serialportBox->addItem(serialport_list[i]);
+                ui->zigbee_serialportBox->addItem(serialport_list[i]);
+                ui->uwb_serialportBox->addItem(serialport_list[i]);
             }
         }
         else
@@ -104,43 +141,48 @@ void MainWindow::searchSerialport()
             }
             if(temp_list!=serialport_list)
             {
-                ui->serialportBox->clear();
+                ui->zigbee_serialportBox->clear();
+                ui->uwb_serialportBox->clear();
                 for(int i=0;i<temp_list.size();i++)
                 {
-                    ui->serialportBox->addItem(temp_list[i]);
+                    ui->zigbee_serialportBox->addItem(temp_list[i]);
+                    ui->uwb_serialportBox->addItem(temp_list[i]);
                 }
                 serialport_list=temp_list;
             }
         }
-        ui->serialportBox->setCurrentText(serial_choice);
+        ui->zigbee_serialportBox->setCurrentText(zigbee_serial_choice);
+        ui->uwb_serialportBox->setCurrentText(uwb_serial_choice);
     }
     else
     {
-        ui->serialportBox->clear();
-        ui->serialportBox->addItem("");
+        ui->zigbee_serialportBox->clear();
+        ui->zigbee_serialportBox->addItem("");
+        ui->uwb_serialportBox->clear();
+        ui->uwb_serialportBox->addItem("");
         serialport_list.clear();
     }
 }
 
-bool MainWindow::openSerialport()
+bool MainWindow::openZigbeeSerialport()
 {
-    serialport->setPortName(ui->serialportBox->currentText());
-    serialport->setBaudRate(ui->baudrateBox->currentText().toInt());
-    serialport->setStopBits(QSerialPort::OneStop);
-    serialport->setFlowControl(QSerialPort::NoFlowControl);
-    serialport->setDataBits(QSerialPort::Data8);
-    serialport->setParity(QSerialPort::NoParity);
-    QSerialPortInfo serial_info(ui->serialportBox->currentText());
+    zigbee_serialport->setPortName(ui->zigbee_serialportBox->currentText());
+    zigbee_serialport->setBaudRate(ui->zigbee_baudrateBox->currentText().toInt());
+    zigbee_serialport->setStopBits(QSerialPort::OneStop);
+    zigbee_serialport->setFlowControl(QSerialPort::NoFlowControl);
+    zigbee_serialport->setDataBits(QSerialPort::Data8);
+    zigbee_serialport->setParity(QSerialPort::NoParity);
+    QSerialPortInfo serial_info(ui->zigbee_serialportBox->currentText());
     if(serial_info.isBusy()==true)
     {
         QString dlgTitle="错误";
         QString strInfo="打开串口失败!串口已被占用!";
         QMessageBox::critical(this,dlgTitle,strInfo);
-        serial_state=OPENSTATE;
-        changeSerialState();
+        zigbee_serial_state=OPENSTATE;
+        changeZigbeeSerialState();
         return false;
     }
-    if(!serialport->open(QIODevice::ReadWrite))
+    if(!zigbee_serialport->open(QIODevice::ReadWrite))
     {
         QString dlgTitle="错误";
         QString strInfo="打开串口失败!";
@@ -150,26 +192,136 @@ bool MainWindow::openSerialport()
     return true;
 }
 
-void MainWindow::closeSerialport()
+bool MainWindow::openUWBSerialport()
 {
-    serialport->close();
+    uwb_serialport->setPortName(ui->uwb_serialportBox->currentText());
+    uwb_serialport->setBaudRate(ui->uwb_baudrateBox->currentText().toInt());
+    uwb_serialport->setStopBits(QSerialPort::OneStop);
+    uwb_serialport->setFlowControl(QSerialPort::NoFlowControl);
+    uwb_serialport->setDataBits(QSerialPort::Data8);
+    uwb_serialport->setParity(QSerialPort::NoParity);
+    QSerialPortInfo serial_info(ui->uwb_serialportBox->currentText());
+    if(serial_info.isBusy()==true)
+    {
+        QString dlgTitle="错误";
+        QString strInfo="打开串口失败!串口已被占用!";
+        QMessageBox::critical(this,dlgTitle,strInfo);
+        uwb_serial_state=OPENSTATE;
+        changeUWBSerialState();
+        return false;
+    }
+    if(!uwb_serialport->open(QIODevice::ReadWrite))
+    {
+        QString dlgTitle="错误";
+        QString strInfo="打开串口失败!";
+        QMessageBox::critical(this,dlgTitle,strInfo);
+        return false;
+    }
+    quint8 buffer[11]={0x01,0x10,0x00,0x28,0x00,0x01,0x02,0x00,0x04,0xA1,0xBB};
+    memcpy(uwb_send_buffer,buffer,11*sizeof(quint8));
+    writeUWBSerialport();
+    return true;
 }
 
-void MainWindow::writeSerialport()
+void MainWindow::closeZigbeeSerialport()
+{
+    zigbee_serialport->close();
+}
+
+void MainWindow::closeUWBSerialport()
+{
+    quint8 buffer[11]={0x01,0x10,0x00,0x28,0x00,0x01,0x02,0x00,0x00,0xA0,0x78};
+    memcpy(uwb_send_buffer,buffer,11*sizeof(quint8));
+    writeUWBSerialport();
+    uwb_serialport->close();
+}
+
+void MainWindow::writeZigbeeSerialport()
 {
     QByteArray buffer;
     buffer.resize(PACKET_LENGTH);
-    memcpy(buffer.data(),send_buffer,PACKET_LENGTH*sizeof(quint8));
-    serialport->write(buffer);
+    memcpy(buffer.data(),zigbee_send_buffer,PACKET_LENGTH*sizeof(quint8));
+    zigbee_serialport->write(buffer);
 }
 
-void MainWindow::readSerialport()
+void MainWindow::writeUWBSerialport()
 {
-    QByteArray src_data=serialport->readAll();
+    QByteArray buffer;
+    buffer.resize(11);
+    memcpy(buffer.data(),uwb_send_buffer,11*sizeof(quint8));
+    uwb_serialport->write(buffer);
+}
+
+void MainWindow::readZigbeeSerialport()
+{
+    QByteArray src_data=zigbee_serialport->readAll();
+    qDebug()<<src_data;
     processor->setCacheData(src_data);
     if(!processor->isbusy)
     {
         processor->start();
+    }
+}
+
+void MainWindow::readUWBSerialport()
+{
+    QByteArray src_data=uwb_serialport->readAll();
+    if(src_data.size()==31)
+    {
+        quint8 *buffer=(quint8*)src_data.data();
+        if(crc_chk(buffer,29)!=(buffer[30]<<8|buffer[29]))
+        {
+            return;
+        }
+        qint16 id=buffer[3]<<8|buffer[4];
+        qint16 x=buffer[7]<<8|buffer[8];
+        qint16 y=buffer[9]<<8|buffer[10];
+        x=(x<0)?0:x;
+        x=(x>map_lenth)?map_lenth:x;
+        y=(y<0)?0:y;
+        y=(y>map_width)?map_width:y;
+        quint8 trajectory_index;
+        if(collision->car_list.indexOf(id)==-1)
+        {
+            collision->car_list.append(id);
+            collision->car_state.append(ADV);
+        }
+        if(id_list.indexOf(id)==-1)
+        {
+            id_list.append(id);
+            addGraph();
+            QVector<QCPCurveData> trajectory_data;
+            trajectory_data.append(QCPCurveData(0,x,y));
+            trajectorydata_list.append(trajectory_data);
+        }
+        else
+        {
+            trajectory_index=id_list.indexOf(id);
+            collision->clearPosInfo(trajectorydata_list[trajectory_index].last().key,trajectorydata_list[trajectory_index].last().value,id);
+            trajectorydata_list[trajectory_index].append(QCPCurveData(trajectorydata_list[trajectory_index].size(),x,y));
+            trajectory_list[trajectory_index]->data()->set(trajectorydata_list[trajectory_index],true);
+        }
+        ui->widget->replot();
+        collision->setCheckPoint(x,y,id);
+        if(!collision->isbusy)
+        {
+            collision->start();
+        }
+    }
+}
+
+void MainWindow::emitRegSignals()
+{
+    if(!autosend_flag)
+    {
+        QList<quint8> q=collision->queue;
+        quint8 adv_id=q.first();
+        q.removeAt(0);
+        QList<quint8> stop_queue=q;
+        //qDebug()<<"111111111111111";
+        emitStopSignal(stop_queue);
+        //qDebug()<<"222222222222222";
+        emitAdvSignal(adv_id);
     }
 }
 
@@ -185,54 +337,25 @@ void MainWindow::emitStopSignal(QList<quint8> q)
             buffer[0]=0x5E;
             buffer[1]=0x0C;
             buffer[2]=id;
-            buffer[3]=(i==0)?ADV_CMD:STOP_CMD;
+            buffer[3]=STOP_CMD;
             buffer[4]=0x00;
             buffer[5]=0x00;
             buffer[6]=0x00;
             buffer[7]=0x00;
             buffer[8]=((buffer[3]+id+0x6A)&0xFF00)>>8;
             buffer[9]=(buffer[3]+id+0x6A)&0x00FF;
-            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
-            writeSerialport();
+            memcpy(zigbee_send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeZigbeeSerialport();
             send_timer->start(SENDTIME);
             autosend_flag=true;
             while(!reply_flag)
             {
                 QCoreApplication::processEvents();
             }
-            send_timer->stop();
-            autosend_flag=false;
-            reply_flag=false;
-        }
-    }
-}
-
-void MainWindow::emitWaitSignal(QList<quint8> q)
-{
-    quint8 buffer[PACKET_LENGTH];
-    quint8 id;
-    if(!autosend_flag)
-    {
-        for(int i=0;i<q.size();i++)
-        {
-            id=q[i];
-            buffer[0]=0x5E;
-            buffer[1]=0x0C;
-            buffer[2]=id;
-            buffer[3]=(i==0)?ADV_CMD:WAIT_CMD;
-            buffer[4]=0x00;
-            buffer[5]=0x00;
-            buffer[6]=0x00;
-            buffer[7]=0x00;
-            buffer[8]=((buffer[3]+id+0x6A)&0xFF00)>>8;
-            buffer[9]=(buffer[3]+id+0x6A)&0x00FF;
-            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
-            writeSerialport();
-            send_timer->start(SENDTIME);
-            autosend_flag=true;
-            while(!reply_flag)
+            if(collision->car_list.indexOf(buffer[2])!=-1)
             {
-                QCoreApplication::processEvents();
+                collision->car_state[collision->car_list.indexOf(buffer[2])]=STOP;
+                qDebug()<<"stop"<<q<<collision->car_list<<collision->car_state;
             }
             send_timer->stop();
             autosend_flag=false;
@@ -256,13 +379,18 @@ void MainWindow::emitAdvSignal(quint8 id)
         buffer[7]=0x00;
         buffer[8]=((ADV_CMD+id+0x6A)&0xFF00)>>8;
         buffer[9]=(ADV_CMD+id+0x6A)&0x00FF;
-        memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
-        writeSerialport();
+        memcpy(zigbee_send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+        writeZigbeeSerialport();
         send_timer->start(SENDTIME);
         autosend_flag=true;
         while(!reply_flag)
         {
             QCoreApplication::processEvents();
+        }
+        if(collision->car_list.indexOf(buffer[2])!=-1)
+        {
+            collision->car_state[collision->car_list.indexOf(buffer[2])]=ADV;
+            qDebug()<<"adv"<<id<<collision->car_list<<collision->car_state;
         }
         send_timer->stop();
         autosend_flag=false;
@@ -330,8 +458,10 @@ void MainWindow::updateMapSize()
     }
     int x=ui->editMapX->text().toInt();
     int y=ui->editMapY->text().toInt();
-    ui->widget->xAxis->setRange(0,x);//设置x轴长度
-    ui->widget->yAxis->setRange(0,y);//设置y轴长度
+    map_lenth=x;
+    map_width=y;
+    ui->widget->xAxis->setRange(0,x);
+    ui->widget->yAxis->setRange(0,y);
     ui->widget->replot();
     collision->createMap(x,y);
 }
@@ -359,14 +489,25 @@ void MainWindow::postTaskInfo()
             }
             buffer[8]=(sum&0xFF00)>>8;
             buffer[9]=sum&0x00FF;
-            memcpy(send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
-            writeSerialport();
+            memcpy(zigbee_send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeZigbeeSerialport();
             send_timer->start(SENDTIME);
             autosend_flag=true;
             while(!reply_flag)
             {
                 QCoreApplication::processEvents();
             }
+            if(collision->car_list.indexOf(buffer[2])==-1)
+            {
+                collision->car_list.append(buffer[2]);
+                collision->car_state.append(ADV);
+            }
+            else
+            {
+                collision->car_state[collision->car_list.indexOf(buffer[2])]=ADV;
+            }
+            qDebug()<<collision->car_list;
+            qDebug()<<collision->car_state;
             send_timer->stop();
             autosend_flag=false;
             reply_flag=false;
@@ -395,15 +536,32 @@ void MainWindow::recordEditedTask()
     }
 }
 
-void MainWindow::startThread()
-{
-    collision->start();
-    ui->widget->replot();
-}
-
 void MainWindow::addGraph()
 {
     QCPCurve *trajectory = new QCPCurve(ui->widget->xAxis, ui->widget->yAxis);
-    trajectory->setPen(QPen(colorlib[processor->trajectory_list.size()%16]));
-    processor->trajectory_list.append(trajectory);
+    trajectory->setPen(QPen(colorlib[trajectory_list.size()%16]));
+    trajectory_list.append(trajectory);
+}
+
+quint16 MainWindow::crc_chk(quint8 *data,quint8 length)
+{
+    int j;
+    unsigned int crc_reg =0xffff;
+    while(length--)
+    {
+        crc_reg^=*data++;
+        for(j=0;j<8;j++)
+        {
+            if(crc_reg&0x01)
+            {
+                crc_reg=(crc_reg>>1)^0xa001;
+            }
+            else
+            {
+                crc_reg=crc_reg>>1;
+            }
+
+        }
+    }
+    return crc_reg;
 }
