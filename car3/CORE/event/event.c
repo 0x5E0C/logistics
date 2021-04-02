@@ -2,7 +2,7 @@
 
 u8 reply_buffer[PACKET_LENGTH];
 u8 tx_buffer[PACKET_LENGTH];
-u8 car_state;
+bool finish_task_flag;
 
 void GetBroadcastInfo()
 {
@@ -11,24 +11,23 @@ void GetBroadcastInfo()
 	   && USART1_RX_BUF[2]==CAR_ID && CheckData())
 	{
 		Reply();
-		if(USART1_RX_BUF[3]==WAIT_CMD)
+		if(USART1_RX_BUF[3]==TASK_CMD)
 		{
-			car_state=WAIT_STATE;
-			Stop();
+			finish_task_flag=false;
+			target.x=(USART1_RX_BUF[4]<<8)|USART1_RX_BUF[5];
+			target.y=(USART1_RX_BUF[6]<<8)|USART1_RX_BUF[7];
+			Set_TIM1_Enable();
+			UpdateAttitude();
 		}
 		else if(USART1_RX_BUF[3]==STOP_CMD)
 		{
-			car_state=STOP_STATE;
 			Stop();
+			printf("\r\n3stop\r\n");
 		}
-		else if(USART1_RX_BUF[3]==TASK_CMD)
+		else if(USART1_RX_BUF[3]==ADV_CMD)
 		{
-			target.x=(USART1_RX_BUF[4]<<8)|USART1_RX_BUF[5];
-			target.y=(USART1_RX_BUF[6]<<8)|USART1_RX_BUF[7];
 			stop_flag=false;
-			delay_ms(200);
-			Set_TIM1_Enable();
-			UpdateAttitude();
+			printf("\r\n3adv\r\n");
 		}
 	}
 }
@@ -72,25 +71,4 @@ bool CheckData()
 	}
 	check=(USART1_RX_BUF[PACKET_LENGTH-2]<<8)|USART1_RX_BUF[PACKET_LENGTH-1];
 	return (check==sum);
-}
-
-void SendCurrentPos()
-{
-	int sum=0;
-	u8 i;
-	tx_buffer[0]=0x5E;
-	tx_buffer[1]=0x0C;
-	tx_buffer[2]=CAR_ID;
-	tx_buffer[3]=(car_state==WAIT_STATE)?WAIT_CMD:SENDPOS_CMD;
-	tx_buffer[4]=(current_pos.x&0xFF00)>>8;
-	tx_buffer[5]=current_pos.x&0x00FF;
-	tx_buffer[6]=(current_pos.y&0xFF00)>>8;
-	tx_buffer[7]=current_pos.y&0x00FF;
-	for(i=0;i<=7;i++)
-	{
-		sum+=tx_buffer[i];
-		USART1_Send(tx_buffer[i]);
-	}
-	USART1_Send((sum&0xFF00)>>8);
-	USART1_Send(sum&0x00FF);
 }

@@ -8,6 +8,7 @@ int main()
 	PID_Total_Init();
 	TxBuffer_Init();
 	Stop();
+	finish_task_flag=false;
     while(1)
 	{
 		if(u2rx_flag)
