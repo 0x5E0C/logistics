@@ -2,8 +2,9 @@
 #define _BSP_H
 
 #define PACKET_LENGTH  10
-#define CAR_ID 		   0x02
-#define BASE_SPEED	   8000
+#define LABEL_ID       0x01
+#define CAR_ID 		   LABEL_ID
+#define BASE_SPEED	   4000
 
 #include <stdio.h>
 #include <stdlib.h>

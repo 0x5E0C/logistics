@@ -28,8 +28,10 @@ void TIM1_UP_IRQHandler(void)
 		mills+=20;
 		if((mills%200)==0)
 		{
-			UpdateAttitude();
-			SendCurrentPos();
+			if(!stop_flag && !finish_task_flag)
+			{
+				UpdateAttitude();
+			}
 		}
     }
     TIM1->SR &= ~(1 << 0);

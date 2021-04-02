@@ -6,12 +6,9 @@ int main()
     delay_init(72);
     BSP_Init();
 	PID_Total_Init();
-	TxBuffer_Init();
+	TxBuffer_Init();			
+	finish_task_flag=false;
 	Stop();
-	target.x=100;
-	target.y=100;
-	Set_TIM1_Enable();
-	UpdateAttitude();
     while(1)
 	{
 		if(u2rx_flag)
