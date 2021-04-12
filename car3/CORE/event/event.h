@@ -1,7 +1,7 @@
 #ifndef _EVENT_H
 #define _EVENT_H
 
-#define WAIT_CMD  	0x01
+#define AVOID_CMD  	0x01
 #define ADV_CMD     0x02
 #define TASK_CMD  	0x03
 #define REPLY_CMD 	0x04
@@ -11,7 +11,6 @@
 #include "bsp.h"
 
 extern u8 tx_buffer[PACKET_LENGTH];
-extern bool finish_task_flag;
 
 void GetBroadcastInfo(void);
 void Reply(void);

@@ -1,7 +1,7 @@
 #include "pos.h"
 
 Posinfo current_pos;
-Posinfo target;
+Posinfo origin,target,avoid;
 
 void UpdatePosinfo()
 {
