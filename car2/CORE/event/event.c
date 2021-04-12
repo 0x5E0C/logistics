@@ -2,7 +2,6 @@
 
 u8 reply_buffer[PACKET_LENGTH];
 u8 tx_buffer[PACKET_LENGTH];
-bool finish_task_flag;
 
 void GetBroadcastInfo()
 {
@@ -12,22 +11,33 @@ void GetBroadcastInfo()
 	{
 		Reply();
 		if(USART1_RX_BUF[3]==TASK_CMD)
-		{			
-			finish_task_flag=false;
+		{
+			stop_flag=false;
+			origin.x=current_pos.x;
+			origin.y=current_pos.y;
 			target.x=(USART1_RX_BUF[4]<<8)|USART1_RX_BUF[5];
 			target.y=(USART1_RX_BUF[6]<<8)|USART1_RX_BUF[7];
 			Set_TIM1_Enable();
 			UpdateAttitude();
 		}
+		else if(USART1_RX_BUF[3]==AVOID_CMD)
+		{
+			avoid.x=(USART1_RX_BUF[4]<<8)|USART1_RX_BUF[5];
+			avoid.y=(USART1_RX_BUF[6]<<8)|USART1_RX_BUF[7];
+			avoid_mode=true;
+			task_finish=false;
+			stop_flag=false;
+			printf("\r\n1avoid\r\n");
+		}
 		else if(USART1_RX_BUF[3]==STOP_CMD)
 		{
 			Stop();
-			printf("\r\n2stop\r\n");
+			printf("\r\n1stop\r\n");
 		}
 		else if(USART1_RX_BUF[3]==ADV_CMD)
 		{
 			stop_flag=false;
-			printf("\r\n2adv\r\n");
+			printf("\r\n1adv\r\n");
 		}
 	}
 }
@@ -35,6 +45,7 @@ void GetBroadcastInfo()
 void Reply()
 {
 	u8 i;
+	TxBuffer_Init();
 	for(i=0;i<PACKET_LENGTH;i++)
 	{
 		USART1_Send(reply_buffer[i]);
@@ -49,7 +60,7 @@ void TxBuffer_Init()
 	reply_buffer[1]=0x0C;
 	reply_buffer[2]=CAR_ID;
 	reply_buffer[3]=REPLY_CMD;
-	reply_buffer[4]=0x00;
+	reply_buffer[4]=priority;
 	reply_buffer[5]=0x00;
 	reply_buffer[6]=0x00;
 	reply_buffer[7]=0x00;
@@ -72,3 +83,4 @@ bool CheckData()
 	check=(USART1_RX_BUF[PACKET_LENGTH-2]<<8)|USART1_RX_BUF[PACKET_LENGTH-1];
 	return (check==sum);
 }
+

@@ -6,8 +6,6 @@ int main()
     delay_init(72);
     BSP_Init();
 	PID_Total_Init();
-	TxBuffer_Init();			
-	finish_task_flag=false;
 	Stop();
     while(1)
 	{

@@ -15,7 +15,7 @@ void TIM3_IRQHandler(void)
 	int bias;
     if(TIM3->SR & 0X0001)
     {
-		if(!stop_flag && !finish_task_flag)
+		if(!stop_flag && !task_finish)
 		{
 			PID_Gyro.ActualValue=GetAngleBias(car_attitude.angle);
 			bias=Incremental_PID(&PID_Gyro);
