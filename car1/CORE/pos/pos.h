@@ -10,7 +10,7 @@ typedef struct _POSINFO
 } Posinfo;
 
 extern Posinfo current_pos;
-extern Posinfo target;
+extern Posinfo origin,target,avoid;
 	
 void UpdatePosinfo(void);
 

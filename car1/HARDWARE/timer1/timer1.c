@@ -26,7 +26,7 @@ void TIM1_UP_IRQHandler(void)
     if(TIM1->SR & 0X0001)
     {
 		mills+=20;
-		if(!stop_flag && !finish_task_flag)
+		if(!stop_flag && !task_finish)
 		{
 			UpdateAttitude();
 		}
