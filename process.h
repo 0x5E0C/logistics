@@ -12,7 +12,7 @@ class process : public QThread
     Q_OBJECT
 
 public:
-    process();
+    process(detector *c);
     bool isbusy;
     void setCacheData(QByteArray d);
     void setReplyFlag(bool *flag);
@@ -21,6 +21,7 @@ private:
     QByteArray cachedata;
     QByteArray rec_data;
     bool *reply_flag;
+    detector *collision;
     void processData();
     int getDataIndex(QByteArray data);
 

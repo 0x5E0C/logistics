@@ -10,7 +10,7 @@
 #define BASETIME    500
 #define SENDTIME    100
 
-#define WAIT_CMD  	0x01
+#define AVOID_CMD  	0x01
 #define ADV_CMD     0x02
 #define TASK_CMD  	0x03
 #define REPLY_CMD 	0x04
@@ -18,5 +18,11 @@
 #define STOP_CMD    0x06
 
 #define PACKET_LENGTH  10
+
+#define X_DIR       0
+#define Y_DIR       1
+
+const int safe_distance=120;
+const double avoid_coe=1.2;
 
 #endif // PUBLIC_H

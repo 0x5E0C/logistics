@@ -1,7 +1,8 @@
 #include "process.h"
 
-process::process()
+process::process(detector *c)
 {
+    collision=c;
     isbusy=false;
 }
 
@@ -43,10 +44,21 @@ void process::run()
             qDebug()<<tempbuffer.toHex()<<sum<<(rec_buffer[8]<<8|rec_buffer[9])<<rec_buffer[8]<<rec_buffer[9];
             continue;
         }
+        int id=rec_buffer[2];
+        int dir=rec_buffer[4];
         if(rec_buffer[3]==REPLY_CMD)
         {
             qDebug()<<"reply";
+            qDebug()<<id<<dir;
             *reply_flag=true;
+            if(collision->car_dir.contains(id))
+            {
+                collision->car_dir[id]=dir;
+            }
+            else
+            {
+                collision->car_dir.insert(id,dir);
+            }
         }
     }
     isbusy=false;

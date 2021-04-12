@@ -65,7 +65,7 @@ private slots:
    void recordUWBSerialChoice(int choice);
    void readZigbeeSerialport();
    void readUWBSerialport();
-   void emitRegSignals();
+   void emitRegSignals(QMap<quint8,QPoint> q);
    void emitStopSignal(QList<quint8> q);
    void emitAdvSignal(quint8 id);
    void addTask();

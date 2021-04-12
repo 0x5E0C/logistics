@@ -3,6 +3,7 @@
 
 #include <QThread>
 #include <QDebug>
+#include <QtMath>
 #include "public.h"
 
 #define formatXpos(x) (x/safe_distance+1)
@@ -24,22 +25,24 @@ class detector : public QThread
 signals:
     void stopSignal(QList<quint8> q);
     void advSignal(quint8 id);
-    void regSignal();
+    void regSignal(QMap<quint8,QPoint> q);
 
 public:
     detector();
     QList<quint8> queue;
-    QList<quint8> car_list;
-    QList<bool> car_state;
+    QMap<int,bool> car_state;
+    QMap<int,int> car_dir;
+    QMap<int,QPoint> car_pos;
     bool isbusy;
     void createMap(int xsize,int ysize);
     void clearPosInfo(int xpos,int ypos,quint8 id);
     void setPosInfo(int xpos,int ypos,quint8 id);
     void setCheckPoint(int xpos,int ypos,quint8 id);
+    void regCars(QList<quint8> q,bool *flag);
 
 private:
-    const int safe_distance=100;
     pos_info *map;
+    QPoint *map_size=new QPoint();
     struct array_size
     {
         int xsize;
@@ -51,8 +54,17 @@ private:
         int y;
         quint8 id;
     }pending_info;
+    enum DIR
+    {
+        UNDEF,
+        LEFT,
+        TOP,
+        RIGHT,
+        BOTTOM
+    } dir;
     void startDetector(int array_x,int array_y);
-    void emitRegSignals();
+    int getXAvailableDir(QPoint pos);
+    int getYAvailableDir(QPoint pos);
 
 protected:
     void run();

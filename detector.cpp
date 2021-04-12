@@ -12,6 +12,8 @@ void detector::run()
 
 void detector::createMap(int xsize,int ysize)
 {
+    map_size->setX(xsize);
+    map_size->setY(ysize);
     array_size.xsize=(xsize%safe_distance==0)?(xsize/safe_distance):(xsize/safe_distance+1);
     array_size.ysize=(ysize%safe_distance==0)?(ysize/safe_distance):(ysize/safe_distance+1);
     array_size.xsize+=2;
@@ -52,17 +54,7 @@ void detector::setCheckPoint(int xpos,int ypos,quint8 id)
     pending_info.x=xpos;
     pending_info.y=ypos;
     pending_info.id=id;
-//    if(!getArrayFromPos(xpos,ypos)->id->isEmpty())
-//    {
-//        queue.clear();
-//        queue.append(*getArrayFromPos(xpos,ypos)->id);
-//        queue.append(id);
-//        qDebug()<<"set:"<<queue;
-//        emitRegSignals();
-//    }
-    //qDebug()<<"before set:"<<*getArrayFromPos(xpos,ypos)->id;
     setPosInfo(xpos,ypos,id);
-    //qDebug()<<"after set:"<<*getArrayFromPos(xpos,ypos)->id;
 }
 
 void detector::startDetector(int array_x,int array_y)
@@ -85,7 +77,7 @@ void detector::startDetector(int array_x,int array_y)
                         if(getArray(i,j)->id->at(k)!=pending_info.id)
                         {
                             queue.append(getArray(i,j)->id->at(k));
-                            //qDebug()<<"check:"<<pending_info.id<<getArray(i,j)->id->at(k);
+//                            qDebug()<<"check:"<<pending_info.id<<getArray(i,j)->id->at(k);
                         }
                     }
                 }
@@ -96,11 +88,12 @@ void detector::startDetector(int array_x,int array_y)
     if(!queue.isEmpty())
     {
         queue.append(pending_info.id);
-        emitRegSignals();
+        std::sort(queue.begin(),queue.end(),std::greater<int>());
+        emit stopSignal(queue);
     }
-    else if(car_list.indexOf(pending_info.id)!=-1)
+    else if(car_state.contains(pending_info.id))
     {
-        if(car_state[car_list.indexOf(pending_info.id)]==STOP)
+        if(car_state[pending_info.id]==STOP)
         {
             emit advSignal(pending_info.id);
         }
@@ -109,8 +102,96 @@ void detector::startDetector(int array_x,int array_y)
     //qDebug()<<"after queue:"<<queue;
 }
 
-void detector::emitRegSignals()
+void detector::regCars(QList<quint8> q,bool *flag)
 {
-    std::sort(queue.begin(),queue.end());
-    emit regSignal();
+    quint8 first_id=q.last();
+    q.removeLast();
+    QList<quint8> yield_id=q;
+    QMap<quint8,QPoint> reg_q;
+    int xpos,ypos;
+    if(!car_dir.contains(first_id))
+    {
+        return;
+    }
+    for(int i=0;i<yield_id.size();i++)
+    {
+        int id=yield_id.at(i);
+        if(!car_dir.contains(id))
+        {
+            return;
+        }
+        qDebug()<<__LINE__<<car_dir[first_id]<<car_dir[id];
+        if(car_dir[first_id]==X_DIR)
+        {
+            qDebug()<<"im in xdir"<<car_dir[first_id]<<car_dir[id];
+            qDebug()<<car_pos[id].x();
+            qDebug()<<car_pos[first_id].y();
+            qDebug()<<getYAvailableDir(car_pos[id]);
+            xpos=car_pos[id].x();
+            ypos=car_pos[first_id].y()+getYAvailableDir(car_pos[id])*avoid_coe*safe_distance;
+        }
+        else if(car_dir[first_id]==Y_DIR)
+        {
+            qDebug()<<"im in ydir"<<car_dir[first_id]<<car_dir[id];
+            xpos=car_pos[first_id].x()+getXAvailableDir(car_pos[id])*avoid_coe*safe_distance;
+            ypos=car_pos[id].y();
+        }
+        else
+        {
+            return;
+        }
+        QPoint pos=QPoint(xpos,ypos);
+        qDebug()<<id<<pos;
+        reg_q.insert(id,pos);
+    }
+    emit regSignal(reg_q);
+}
+
+int detector::getXAvailableDir(QPoint pos)
+{
+    int xpos=pos.x();
+    int ypos=pos.y();
+    int array_x=formatXpos(xpos);
+    int array_y=formatYpos(ypos);
+    if(getArray(array_x+1,array_y)->id->isEmpty() && getArray(array_x-1,array_y)->id->isEmpty())
+    {
+        return -(xpos-map_size->x()/2)/qAbs(xpos-map_size->x()/2);
+    }
+    else if(getArray(array_x+1,array_y)->id->isEmpty())
+    {
+        return 1;
+    }
+    else if(getArray(array_x-1,array_y)->id->isEmpty())
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int detector::getYAvailableDir(QPoint pos)
+{
+    int xpos=pos.x();
+    int ypos=pos.y();
+    int array_x=formatXpos(xpos);
+    int array_y=formatYpos(ypos);
+    return -1;
+    //qDebug()<<array_x<<array_y<<array_size.xsize<<array_size.ysize;
+    //qDebug()<<map<<map+array_size.xsize*array_size.ysize*sizeof(pos_info);
+    //qDebug()<<getArray(array_x,array_y+1)<<getArray(array_x,array_y-1);
+    if(getArray(array_x,array_y+1)->id->isEmpty() && getArray(array_x,array_y-1)->id->isEmpty())
+    {
+        qDebug()<<(ypos-map_size->y()/2)/qAbs(ypos-map_size->y()/2);
+//        qDebug()<<*getArray(array_x,array_y+1)->id<<*getArray(array_x,array_y-1)->id;
+        return -(ypos-map_size->y()/2)/qAbs(ypos-map_size->y()/2);
+    }
+    else if(getArray(array_x,array_y+1)->id->isEmpty())
+    {
+//        qDebug()<<*getArray(array_x,array_y+1)->id<<*getArray(array_x,array_y-1)->id;
+        return 1;
+    }
+    else if(getArray(array_x,array_y+1)->id->isEmpty())
+    {
+        return -1;
+    }
+    return 0;
 }

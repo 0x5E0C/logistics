@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(uwb_serialport,SIGNAL(readyRead()),this,SLOT(readUWBSerialport()));
     connect(collision,SIGNAL(stopSignal(QList<quint8>)),this,SLOT(emitStopSignal(QList<quint8>)));
     connect(collision,SIGNAL(advSignal(quint8)),this,SLOT(emitAdvSignal(quint8)));
-    connect(collision,SIGNAL(regSignal()),this,SLOT(emitRegSignals()));
+    connect(collision,SIGNAL(regSignal(QMap<quint8,QPoint>)),this,SLOT(emitRegSignals(QMap<quint8,QPoint>)));
 }
 
 MainWindow::~MainWindow()
@@ -43,7 +43,7 @@ void MainWindow::widgetInit()
     reply_flag=false;
     autosend_flag=false;
     collision = new detector();
-    processor = new process();
+    processor = new process(collision);
     processor->setReplyFlag(&reply_flag);
     ui->zigbee_openButton->setIcon(QPixmap(":/state/close.png"));
     ui->zigbee_openButton->setText("打开串口");
@@ -281,10 +281,17 @@ void MainWindow::readUWBSerialport()
         y=(y<0)?0:y;
         y=(y>map_width)?map_width:y;
         quint8 trajectory_index;
-        if(collision->car_list.indexOf(id)==-1)
+        if(!collision->car_state.contains(id))
         {
-            collision->car_list.append(id);
-            collision->car_state.append(ADV);
+            collision->car_state.insert(id,ADV);
+        }
+        if(!collision->car_pos.contains(id))
+        {
+            collision->car_pos.insert(id,QPoint(x,y));
+        }
+        else
+        {
+            collision->car_pos[id]=QPoint(x,y);
         }
         if(id_list.indexOf(id)==-1)
         {
@@ -310,18 +317,52 @@ void MainWindow::readUWBSerialport()
     }
 }
 
-void MainWindow::emitRegSignals()
+void MainWindow::emitRegSignals(QMap<quint8,QPoint> q)
 {
+    quint8 buffer[PACKET_LENGTH];
+    quint8 id;
+    QList<quint8> keys=q.keys();
+    int sum=0;
     if(!autosend_flag)
     {
-        QList<quint8> q=collision->queue;
-        quint8 adv_id=q.first();
-        q.removeAt(0);
-        QList<quint8> stop_queue=q;
-        //qDebug()<<"111111111111111";
-        emitStopSignal(stop_queue);
-        //qDebug()<<"222222222222222";
-        emitAdvSignal(adv_id);
+        for(int i=0;i<keys.size();i++)
+        {
+            id=keys.at(i);
+            buffer[0]=0x5E;
+            buffer[1]=0x0C;
+            buffer[2]=id;
+            buffer[3]=AVOID_CMD;
+            buffer[4]=(q[id].x()&0xFF00)>>8;
+            buffer[5]=q[id].x()&0x00FF;
+            buffer[6]=(q[id].y()&0xFF00)>>8;
+            buffer[7]=q[id].y()&0x00FF;
+            sum=0;
+            qDebug()<<"ssssssssssssssssssss";
+            for(int j=0;j<8;j++)
+            {
+                qDebug()<<buffer[j];
+                sum+=buffer[j];
+            }
+            qDebug()<<"eeeeeeeeeeeeeeeeeeee";
+            buffer[8]=(sum&0xFF00)>>8;
+            buffer[9]=sum&0x00FF;
+            memcpy(zigbee_send_buffer,buffer,PACKET_LENGTH*sizeof(quint8));
+            writeZigbeeSerialport();
+            send_timer->start(SENDTIME);
+            autosend_flag=true;
+            while(!reply_flag)
+            {
+                QCoreApplication::processEvents();
+            }
+            if(collision->car_state.contains(id))
+            {
+                collision->car_state[id]=STOP;
+            }
+            send_timer->stop();
+            autosend_flag=false;
+            reply_flag=false;
+        }
+        autosend_flag=true;
     }
 }
 
@@ -352,21 +393,23 @@ void MainWindow::emitStopSignal(QList<quint8> q)
             {
                 QCoreApplication::processEvents();
             }
-            if(collision->car_list.indexOf(buffer[2])!=-1)
+            if(collision->car_state.contains(id))
             {
-                collision->car_state[collision->car_list.indexOf(buffer[2])]=STOP;
-                qDebug()<<"stop"<<q<<collision->car_list<<collision->car_state;
+                collision->car_state[id]=STOP;
             }
             send_timer->stop();
             autosend_flag=false;
             reply_flag=false;
         }
+        collision->regCars(q,&autosend_flag);
     }
 }
 
 void MainWindow::emitAdvSignal(quint8 id)
 {
     quint8 buffer[PACKET_LENGTH];
+    qDebug()<<autosend_flag;
+    autosend_flag=false;
     if(!autosend_flag)
     {
         buffer[0]=0x5E;
@@ -387,10 +430,9 @@ void MainWindow::emitAdvSignal(quint8 id)
         {
             QCoreApplication::processEvents();
         }
-        if(collision->car_list.indexOf(buffer[2])!=-1)
+        if(collision->car_state.contains(id))
         {
-            collision->car_state[collision->car_list.indexOf(buffer[2])]=ADV;
-            qDebug()<<"adv"<<id<<collision->car_list<<collision->car_state;
+            collision->car_state[id]=ADV;
         }
         send_timer->stop();
         autosend_flag=false;
@@ -497,17 +539,16 @@ void MainWindow::postTaskInfo()
             {
                 QCoreApplication::processEvents();
             }
-            if(collision->car_list.indexOf(buffer[2])==-1)
+            if(!collision->car_state.contains(task_list[i].id))
             {
-                collision->car_list.append(buffer[2]);
-                collision->car_state.append(ADV);
+                collision->car_state.insert(task_list[i].id,ADV);
             }
             else
             {
-                collision->car_state[collision->car_list.indexOf(buffer[2])]=ADV;
+                collision->car_state[task_list[i].id]=ADV;
             }
-            qDebug()<<collision->car_list;
-            qDebug()<<collision->car_state;
+//            qDebug()<<collision->car_state;
+//            collision->car_target.insert(task_list[i].id,QPoint(task_list[i].x,task_list[i].y));
             send_timer->stop();
             autosend_flag=false;
             reply_flag=false;
@@ -546,7 +587,7 @@ void MainWindow::addGraph()
 quint16 MainWindow::crc_chk(quint8 *data,quint8 length)
 {
     int j;
-    unsigned int crc_reg =0xffff;
+    unsigned int crc_reg=0xffff;
     while(length--)
     {
         crc_reg^=*data++;
