@@ -13,15 +13,15 @@ class process : public QThread
 
 public:
     process(detector *c);
-    bool isbusy;
+    bool isbusy;                        //线程状态
     void setCacheData(QByteArray d);
     void setReplyFlag(bool *flag);
 
 private:
-    QByteArray cachedata;
-    QByteArray rec_data;
-    bool *reply_flag;
-    detector *collision;
+    QByteArray cachedata;               //数据缓冲区
+    QByteArray rec_data;                //数据待处理区
+    bool *reply_flag;                   //从mainwindows传入的回复标记位的指针
+    detector *collision;                //碰撞检测器
     void processData();
     int getDataIndex(QByteArray data);
 

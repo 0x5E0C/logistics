@@ -315,7 +315,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>250</string>
+      <string/>
      </property>
     </widget>
     <widget class="QLineEdit" name="editEndY">
@@ -331,7 +331,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>150</string>
+      <string/>
      </property>
     </widget>
     <widget class="QPushButton" name="deleteTaskButton">
@@ -473,7 +473,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>400</string>
+      <string/>
      </property>
     </widget>
     <widget class="QLineEdit" name="editMapY">
@@ -486,7 +486,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>400</string>
+      <string/>
      </property>
     </widget>
    </widget>

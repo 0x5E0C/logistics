@@ -22,7 +22,7 @@
 #define X_DIR       0
 #define Y_DIR       1
 
-const int safe_distance=120;
-const double avoid_coe=1.2;
+const int safe_distance=120;    //安全距离
+const double avoid_coe=1.2;     //避让距离系数（安全距离的倍数）
 
 #endif // PUBLIC_H

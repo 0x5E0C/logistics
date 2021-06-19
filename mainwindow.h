@@ -24,31 +24,31 @@ public:
     ~MainWindow();
     typedef struct _task
     {
-        int id;
-        int x;
-        int y;
+        int id; //车辆id
+        int x;  //目的地x坐标
+        int y;  //目的地y坐标
     }task;
 
 private:
     Ui::MainWindow *ui;
-    QTimer *timer = new QTimer(this);
-    QTimer *send_timer = new QTimer(this);
-    process *processor;
-    QList<QString> serialport_list;
-    bool zigbee_serial_state,uwb_serial_state;
-    QString  zigbee_serial_choice,uwb_serial_choice;
-    QSerialPort *zigbee_serialport = new QSerialPort();
-    QSerialPort *uwb_serialport = new QSerialPort();
-    QList<quint8> task_id_list;
-    quint8 max_task_id;
-    QList<task> task_list;
-    detector *collision;
-    bool reply_flag,autosend_flag;
-    quint8 zigbee_send_buffer[PACKET_LENGTH],uwb_send_buffer[11];
-    QList<quint8> id_list;
-    QVector<QVector<QCPCurveData>> trajectorydata_list;
-    QVector<QCPCurve*> trajectory_list;
-    int map_width,map_lenth;
+    QTimer *timer = new QTimer(this);                   //用于定时搜索串口的定时器
+    QTimer *send_timer = new QTimer(this);              //用于定时发送数据的定时器
+    process *processor;                                 //数据包处理器（新线程）
+    QList<QString> serialport_list;                     //可用串口列表
+    bool zigbee_serial_state,uwb_serial_state;          //zigbee（uwb）所在串口打开状态
+    QString  zigbee_serial_choice,uwb_serial_choice;    //zigbee（uwb）选择打开的串口的名字
+    QSerialPort *zigbee_serialport = new QSerialPort(); //初始化zigbee串口
+    QSerialPort *uwb_serialport = new QSerialPort();    //初始化uwb串口
+    QList<quint8> task_id_list;                         //任务id列表
+    quint8 max_task_id;                                 //最大的任务id
+    QList<task> task_list;                              //任务列表
+    detector *collision;                                //碰撞检测器
+    bool reply_flag,autosend_flag;                      //是否收到下位机回复标志位，自动发送标志位
+    quint8 zigbee_send_buffer[PACKET_LENGTH],uwb_send_buffer[11];   //zigbee（uwb）发送缓存区
+    QList<quint8> id_list;                              //车辆id列表
+    QVector<QVector<QCPCurveData>> trajectorydata_list; //轨迹数据点列表
+    QVector<QCPCurve*> trajectory_list;                 //轨迹列表
+    int map_width,map_lenth;                            //地图宽（长）
     void widgetInit();
     bool openZigbeeSerialport();
     bool openUWBSerialport();
