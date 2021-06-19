@@ -2,6 +2,7 @@
 
 Gyro gyro;
 
+//获取当前与目标角度的差值，并格式化输出
 float GetAngleBias(float target)
 {
 	if(gyro.yaw>=target)

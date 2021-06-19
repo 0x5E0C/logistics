@@ -1,5 +1,7 @@
 #include "timer2.h"
 
+//tim2用于输出pwm
+//pwm周期为10ms
 void Motor_TIM2_Init(u16 arr, u16 psc)
 {
     RCC->APB1ENR|=1<<0; 
