@@ -5,12 +5,12 @@
 
 typedef struct _POSINFO
 {
-	int x;
-	int y;
+	int x;	//X坐标
+	int y;	//Y坐标
 } Posinfo;
 
-extern Posinfo current_pos;
-extern Posinfo origin,target,avoid;
+extern Posinfo current_pos;			//当前位置
+extern Posinfo origin,target,avoid;	//出发点，目标点，避让点
 	
 void UpdatePosinfo(void);
 

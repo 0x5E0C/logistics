@@ -2,10 +2,11 @@
 
 bool stop_flag=false;
 
+//设置左右轮的速度
 void SetSpeed(int left_speed,int right_speed)
 {
 	stop_flag=false;
-	if(left_speed<0)
+	if(left_speed<0)				//左轮输入速度小于0时PB0作为电机正极
 	{
 		TIM2->CCR1=10000+left_speed;
 		PBout(0)=1;
@@ -15,7 +16,7 @@ void SetSpeed(int left_speed,int right_speed)
 		TIM2->CCR1=left_speed;
 		PBout(0)=0;
 	}
-	if(right_speed<0)
+	if(right_speed<0)				//右轮输入速度小于0时PB1作为电机正极
 	{
 		TIM2->CCR2=10000+right_speed;
 		PBout(1)=1;
@@ -27,6 +28,7 @@ void SetSpeed(int left_speed,int right_speed)
 	}
 }
 
+//宏观控制小车，设置小车的基准速度和目标角度
 void Move(int speed,float angle)
 {
 	stop_flag=false;
@@ -35,6 +37,7 @@ void Move(int speed,float angle)
 	PID_Gyro.SetValue=0;
 }
 
+//停止车辆
 void Stop()
 {
 	stop_flag=true;

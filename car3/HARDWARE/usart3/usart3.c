@@ -4,6 +4,9 @@ u8 USART3_RX_BUF[USART3_REC_LEN];
 u8 USART3_byteNum;
 u8 u3rx_flag=0;
 
+//usart3连接陀螺仪
+//设置usart3为dma接收+空闲中断
+//中断分组为0,1
 void Gyro_USART3_Init(u32 bound)
 {
     float temp;
@@ -25,7 +28,10 @@ void Gyro_USART3_Init(u32 bound)
     USART3->CR1 = 0x201C;
 }
 
-
+//串口中断时解析陀螺仪数据包
+//gyro.ax等为加速度信息
+//gyro.wx等为角速度信息
+//gyro.roll等为角度信息
 void USART3_IRQHandler(void)
 {
     if(USART3->SR & (1 << 3))
@@ -43,7 +49,7 @@ void USART3_IRQHandler(void)
         DMA1_Channel3->CNDTR = USART3_REC_LEN;
 		if(USART3_byteNum == 33)
 		{
-			u3rx_flag = 1;
+			u3rx_flag = 1;		//陀螺仪数据更新标志位置1
 			if(USART3_RX_BUF[1] == 0x51)
 			{
 				gyro.ax = ((short)(USART3_RX_BUF[3] << 8) | USART3_RX_BUF[2]) / 32768.0 * 16 * 9.8;
