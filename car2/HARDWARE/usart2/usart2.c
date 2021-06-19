@@ -11,6 +11,9 @@ void USART2_Send(u8 data)
     USART2->DR = data;
 }
 
+//usart2连接UWB模块
+//设置usart2为dma接收+空闲中断
+//中断分组为0,0
 void UWB_USART2_Init(u32 bound)
 {
     float temp;
@@ -47,7 +50,7 @@ void USART2_IRQHandler(void)
         USART2_byteNum = USART2->DR;
         DMA1_Channel6->CCR &= ~(1 << 0);
         USART2_byteNum = USART2_REC_LEN - DMA1_Channel6->CNDTR;
-		u2rx_flag = 1;
+		u2rx_flag = 1;	//uwb数据更新标志位置1
         DMA1_Channel6->CNDTR = USART2_REC_LEN;
         DMA1_Channel6->CCR |= 1 << 0;
 		USART2->CR1 |= 1<<5;

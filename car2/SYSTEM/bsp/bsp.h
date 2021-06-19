@@ -1,10 +1,10 @@
 #ifndef _BSP_H
 #define _BSP_H
 
-#define PACKET_LENGTH  10
-#define LABEL_ID       0x01
-#define CAR_ID 		   LABEL_ID
-#define BASE_SPEED	   4000
+#define PACKET_LENGTH  10		//上位机与下位机的通讯协议长度
+#define LABEL_ID       0x01		//所携带的标签的id
+#define CAR_ID 		   LABEL_ID	//车辆的标识id
+#define BASE_SPEED	   4000		//行驶的基准速度
 
 #include <stdio.h>
 #include <stdlib.h>
